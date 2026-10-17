@@ -97,7 +97,10 @@ try {
   b.guest.tick();
   await until(() => b.got.signals.some(([who, k]) => who === "host" && k === "no"), 5000, "the host's refusal");
   await wait(300);
-  ok(!b.guest.links.has(0) && b.guest.retries > 3, "a guest told no stops asking");
+  b.guest.retryAt = 0;
+  b.guest.tick(); // even when its retry time has come, it must not offer again
+  await wait(300);
+  ok(!b.guest.links.has(0), "a guest told no stops asking");
   ok(b.guest.status(0).state === "refused", "and status() says why: the host refused");
   b.guest.close(); b.host.close();
 

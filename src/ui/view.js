@@ -209,7 +209,13 @@ function settingsSection(session, inRoom) {
 /** Direct links exist from 2.3.0; a player on an older version never answers an offer. */
 const supportsDirect = (version) => !isNewer("2.3.0", version);
 
-const whyText = (why) => (/no link in time/.test(why) ? T.whyTimeout : /too much/.test(why) ? T.whyFlood : T.whyFailed);
+const whyText = (why) => {
+  if (/\|stun/.test(why)) return T.whyStun;
+  if (/\|silent/.test(why)) return T.whySilent;
+  if (/\|nat/.test(why)) return T.whyNat;
+  if (/no link in time/.test(why)) return T.whyTimeout;
+  return /too much/.test(why) ? T.whyFlood : T.whyFailed;
+};
 
 /** How the packets to one player travel, in words: seat 0 is the host (a guest's view), the others are guests. */
 function routeText(session, seat) {

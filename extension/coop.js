@@ -1,4 +1,4 @@
-// BO1 Zombies Co-op 2.4.2 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
+// BO1 Zombies Co-op 2.4.3 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
 (() => {
   // relay/src/protocol.js
   var ROLES = Object.freeze(["host", "guest"]);
@@ -577,7 +577,7 @@
   // src/net/direct.js
   var STUN_SERVERS = Object.freeze([{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun.cloudflare.com:3478" }]);
   var ATTEMPT_MS = 12e3;
-  var RETRY_MS = [3e3, 1e4, 3e4];
+  var RETRY_MS = [5e3, 3e4];
   var MIN_OFFER_GAP_MS = 1500;
   var PING_MS = 1e3;
   var BUFFER_LIMIT = 256 * 1024;
@@ -775,6 +775,7 @@
         const candidate = checkCandidate(raw);
         if (!candidate || link.received >= MAX_CANDIDATES) continue;
         link.received += 1;
+        link.diag.remote += 1;
         if (link.remoteSet) {
           try {
             await link.pc.addIceCandidate(candidate);
@@ -828,14 +829,23 @@
         frames: 0,
         controls: 0,
         windowAt: this.now(),
-        timer: null
+        timer: null,
+        // What the handshake looked like, for the report: the kinds of address we found, how many the other side sent.
+        diag: { ice: "new", local: { host: 0, srflx: 0, prflx: 0, relay: 0 }, remote: 0 }
       };
       this.links.set(seat, link);
       link.timer = setTimeout(() => {
-        if (!link.open && this.links.get(seat) === link) this.drop(seat, "no link in time");
+        if (!link.open && this.links.get(seat) === link) this.drop(seat, `no link in time|${this.timeoutKind(link)}`);
       }, ATTEMPT_MS);
+      pc.oniceconnectionstatechange = () => {
+        if (this.links.get(seat) !== link) return;
+        link.diag.ice = pc.iceConnectionState;
+        this.log(`direct: ice ${pc.iceConnectionState} (${seat === 0 ? "the host" : `player ${seat + 1}`})`);
+      };
       pc.onicecandidate = ({ candidate }) => {
         if (!candidate || this.links.get(seat) !== link) return;
+        const kind = candidate.type ?? /typ (\w+)/.exec(candidate.candidate)?.[1];
+        if (kind in link.diag.local) link.diag.local[kind] += 1;
         link.outgoing.push({ candidate: candidate.candidate, sdpMid: candidate.sdpMid, sdpMLineIndex: candidate.sdpMLineIndex });
         link.batchTimer ??= setTimeout(() => this.sendCandidates(link), CANDIDATE_BATCH_MS);
       };
@@ -852,6 +862,17 @@
       return link;
     }
     /** Candidates go out in messages that each fit a relay text frame (the relay closes the connection of a bigger one). */
+    /**
+     * Why a handshake that took too long probably failed, from what it gathered: "stun" when no public address was found
+     * (UDP to the STUN servers is blocked: a VPN, a firewall, a browser privacy setting), "silent" when the other side
+     * sent no addresses at all, "nat" when both sides had some but the two networks could not reach each other.
+     */
+    timeoutKind(link) {
+      const { local, remote } = link.diag;
+      if (!local.srflx && !local.relay) return "stun";
+      if (!remote) return "silent";
+      return "nat";
+    }
     sendCandidates(link) {
       link.batchTimer = null;
       if (this.links.get(link.seat) !== link) return;
@@ -948,11 +969,12 @@
         channel.onopen = channel.onclose = channel.onmessage = channel.onerror = null;
       }
       try {
-        link.pc.onicecandidate = link.pc.onconnectionstatechange = link.pc.ondatachannel = null;
+        link.pc.onicecandidate = link.pc.onconnectionstatechange = link.pc.oniceconnectionstatechange = link.pc.ondatachannel = null;
         link.pc.close();
       } catch {
       }
-      this.log(`direct: link to ${seat === 0 ? "the host" : `player ${seat + 1}`} ended (${why})`);
+      const { ice, local, remote } = link.diag;
+      this.log(`direct: link to ${seat === 0 ? "the host" : `player ${seat + 1}`} ended (${why}) [ice ${ice}; our addresses: host ${local.host}, public ${local.srflx}, relay ${local.relay}; theirs: ${remote}]`);
       if (!/^(turned off|closed|host left|guest left|new offer|host does not)/.test(why)) this.failures.set(seat, why);
       if (this.role === "guest" && retry && this.enabled && !why.startsWith("host")) {
         this.retryAt = this.now() + (RETRY_MS[this.retries] ?? RETRY_MS.at(-1));
@@ -1419,6 +1441,9 @@
       whyTimeout: "no answer in time, check the network or firewall",
       whyFailed: "the link could not be set up",
       whyFlood: "too many packets",
+      whyStun: "no public address found: UDP is blocked (VPN, firewall or a browser WebRTC privacy setting)",
+      whySilent: "the other player sent no connection details",
+      whyNat: "the two networks cannot reach each other (strict NAT or firewall)",
       theHost: "the host",
       directNote: "A direct link cuts the delay, but the other players in the room can then see your IP address. Turn it off to stay behind the relay.",
       routeSome: (n, total) => `${n} of ${total} direct`,
@@ -1561,6 +1586,9 @@
       whyTimeout: "sem resposta a tempo, confira a rede ou o firewall",
       whyFailed: "não foi possível estabelecer o link",
       whyFlood: "pacotes demais",
+      whyStun: "nenhum endereço público encontrado: o UDP está bloqueado (VPN, firewall ou ajuste de privacidade WebRTC do navegador)",
+      whySilent: "o outro jogador não enviou dados de conexão",
+      whyNat: "as duas redes não se alcançam (NAT restrito ou firewall)",
       theHost: "o host",
       directNote: "A conexão direta diminui o atraso, mas os outros jogadores da sala passam a ver o seu endereço IP. Desligue para ficar atrás do relay.",
       routeSome: (n, total) => `${n} de ${total} direta`,
@@ -1703,6 +1731,9 @@
       whyTimeout: "pas de réponse à temps, vérifie le réseau ou le pare-feu",
       whyFailed: "la liaison n'a pas pu s'établir",
       whyFlood: "trop de paquets",
+      whyStun: "aucune adresse publique trouvée : l'UDP est bloqué (VPN, pare-feu ou réglage WebRTC du navigateur)",
+      whySilent: "l'autre joueur n'a envoyé aucune donnée de connexion",
+      whyNat: "les deux réseaux n'arrivent pas à se joindre (NAT strict ou pare-feu)",
       theHost: "l'hôte",
       directNote: "Une connexion directe réduit le délai, mais les autres joueurs de la salle voient alors ton adresse IP. Désactive-la pour rester derrière le relais.",
       routeSome: (n, total) => `${n} sur ${total} en direct`,
@@ -1744,7 +1775,7 @@
   }
 
   // src/session/session.js
-  var VERSION = "2.4.2";
+  var VERSION = "2.4.3";
   var AIM_LEVELS = 10;
   function createSession(search = location.search) {
     const params = new URLSearchParams(search);
@@ -3915,7 +3946,13 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
     return { kind: "section", title: T.settings, act: "settings", open: session.showSettings, blocks };
   }
   var supportsDirect = (version) => !isNewer("2.3.0", version);
-  var whyText = (why) => /no link in time/.test(why) ? T.whyTimeout : /too much/.test(why) ? T.whyFlood : T.whyFailed;
+  var whyText = (why) => {
+    if (/\|stun/.test(why)) return T.whyStun;
+    if (/\|silent/.test(why)) return T.whySilent;
+    if (/\|nat/.test(why)) return T.whyNat;
+    if (/no link in time/.test(why)) return T.whyTimeout;
+    return /too much/.test(why) ? T.whyFlood : T.whyFailed;
+  };
   function routeText(session, seat) {
     const status = session.direct.status(seat);
     if (status.state === "open") return T.routeOpen(status.rtt == null ? null : Math.round(status.rtt));

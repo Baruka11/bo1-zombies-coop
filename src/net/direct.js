@@ -22,7 +22,7 @@ import { MAX_BINARY_BYTES, MAX_GUESTS, MAX_TEXT_BYTES, isPeerMessage, parseContr
 export const STUN_SERVERS = Object.freeze([{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stun.cloudflare.com:3478" }]);
 
 const ATTEMPT_MS = 12000; // a handshake that takes longer is given up
-const RETRY_MS = [3000, 10000, 30000]; // the guest tries again after these pauses, then stays on the relay
+const RETRY_MS = [5000, 30000]; // the guest tries again after these pauses, then stays on the relay
 const MIN_OFFER_GAP_MS = 1500; // the host's patience with a seat that keeps offering
 const PING_MS = 1000;
 const BUFFER_LIMIT = 256 * 1024; // game bytes waiting in a channel; beyond that the packet is dropped, as the network would
@@ -255,6 +255,7 @@ export class DirectLinks {
       const candidate = checkCandidate(raw);
       if (!candidate || link.received >= MAX_CANDIDATES) continue;
       link.received += 1;
+      link.diag.remote += 1;
       if (link.remoteSet) {
         try {
           await link.pc.addIceCandidate(candidate);
@@ -300,13 +301,22 @@ export class DirectLinks {
     const link = {
       seat, pc, nonce, game: null, ctl: null, open: false, remoteSet: false, pending: [], received: 0, outgoing: [], batchTimer: null,
       rtt: null, frames: 0, controls: 0, windowAt: this.now(), timer: null,
+      // What the handshake looked like, for the report: the kinds of address we found, how many the other side sent.
+      diag: { ice: "new", local: { host: 0, srflx: 0, prflx: 0, relay: 0 }, remote: 0 },
     };
     this.links.set(seat, link);
     link.timer = setTimeout(() => {
-      if (!link.open && this.links.get(seat) === link) this.drop(seat, "no link in time");
+      if (!link.open && this.links.get(seat) === link) this.drop(seat, `no link in time|${this.timeoutKind(link)}`);
     }, ATTEMPT_MS);
+    pc.oniceconnectionstatechange = () => {
+      if (this.links.get(seat) !== link) return;
+      link.diag.ice = pc.iceConnectionState;
+      this.log(`direct: ice ${pc.iceConnectionState} (${seat === 0 ? "the host" : `player ${seat + 1}`})`);
+    };
     pc.onicecandidate = ({ candidate }) => {
       if (!candidate || this.links.get(seat) !== link) return;
+      const kind = candidate.type ?? /typ (\w+)/.exec(candidate.candidate)?.[1];
+      if (kind in link.diag.local) link.diag.local[kind] += 1;
       link.outgoing.push({ candidate: candidate.candidate, sdpMid: candidate.sdpMid, sdpMLineIndex: candidate.sdpMLineIndex });
       link.batchTimer ??= setTimeout(() => this.sendCandidates(link), CANDIDATE_BATCH_MS);
     };
@@ -325,6 +335,18 @@ export class DirectLinks {
   }
 
   /** Candidates go out in messages that each fit a relay text frame (the relay closes the connection of a bigger one). */
+  /**
+   * Why a handshake that took too long probably failed, from what it gathered: "stun" when no public address was found
+   * (UDP to the STUN servers is blocked: a VPN, a firewall, a browser privacy setting), "silent" when the other side
+   * sent no addresses at all, "nat" when both sides had some but the two networks could not reach each other.
+   */
+  timeoutKind(link) {
+    const { local, remote } = link.diag;
+    if (!local.srflx && !local.relay) return "stun";
+    if (!remote) return "silent";
+    return "nat";
+  }
+
   sendCandidates(link) {
     link.batchTimer = null;
     if (this.links.get(link.seat) !== link) return;
@@ -431,12 +453,13 @@ export class DirectLinks {
       channel.onopen = channel.onclose = channel.onmessage = channel.onerror = null;
     }
     try {
-      link.pc.onicecandidate = link.pc.onconnectionstatechange = link.pc.ondatachannel = null;
+      link.pc.onicecandidate = link.pc.onconnectionstatechange = link.pc.oniceconnectionstatechange = link.pc.ondatachannel = null;
       link.pc.close();
     } catch {
       // already closed
     }
-    this.log(`direct: link to ${seat === 0 ? "the host" : `player ${seat + 1}`} ended (${why})`);
+    const { ice, local, remote } = link.diag;
+    this.log(`direct: link to ${seat === 0 ? "the host" : `player ${seat + 1}`} ended (${why}) [ice ${ice}; our addresses: host ${local.host}, public ${local.srflx}, relay ${local.relay}; theirs: ${remote}]`);
     // Ending on purpose (turned off, someone left, a newer offer) is not a failure to report.
     if (!/^(turned off|closed|host left|guest left|new offer|host does not)/.test(why)) this.failures.set(seat, why);
     if (this.role === "guest" && retry && this.enabled && !why.startsWith("host")) {
