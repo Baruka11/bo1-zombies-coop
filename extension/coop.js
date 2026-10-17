@@ -1,4 +1,4 @@
-// BO1 Zombies Co-op 2.3.0 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
+// BO1 Zombies Co-op 2.3.1 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
 (() => {
   // relay/src/protocol.js
   var ROLES = Object.freeze(["host", "guest"]);
@@ -1188,6 +1188,72 @@
     }
   };
 
+  // src/util/diagnostics.js
+  var HITCH_MS = 300;
+  var JUMP_UNITS = 150;
+  var FIXED_CAMERA = 1024;
+  var KEEP = 20;
+  var LOG_LINES = 60;
+  var distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  var remember = (list, entry) => {
+    list.push(entry);
+    if (list.length > KEEP) list.shift();
+  };
+  function notePause(session, detail) {
+    session.note(detail);
+    remember(session.pauses, `${(/* @__PURE__ */ new Date()).toISOString().slice(11, 23)} ${detail}`);
+  }
+  function sampleView(session) {
+    const view2 = latestView();
+    const sample = session.sample ??= { ms: null, at: 0, origin: null };
+    if (session.paused || view2 && view2.flags & FIXED_CAMERA) {
+      sample.at = 0;
+      sample.ms = view2?.ms ?? sample.ms;
+      return;
+    }
+    if (!view2 || view2.ms === sample.ms) return;
+    const now = performance.now();
+    if (sample.at) {
+      const gap = now - sample.at;
+      if (gap > HITCH_MS) remember(session.hitches, { at: Date.now(), ms: Math.round(gap) });
+      const moved = distance(sample.origin, view2.origin);
+      const ours = Date.now() - (session.movedAt ?? 0) < 3e3;
+      if (moved > JUMP_UNITS && !ours) remember(session.jumps, { at: Date.now(), units: Math.round(moved), ms: Math.round(gap) });
+    }
+    sample.ms = view2.ms;
+    sample.at = now;
+    sample.origin = view2.origin;
+  }
+  var ago = (at) => `${Math.round((Date.now() - at) / 1e3)} s ago`;
+  function buildReport(session, defaultRelay) {
+    const lines = [];
+    const stats = session.stats ?? {};
+    const links = session.direct;
+    const slug = session.hostInfo?.slug ?? currentSlug();
+    lines.push(`BO1 Zombies Co-op ${session.version} diagnostic report`);
+    lines.push(`role: ${session.mode ?? "solo"}${session.mode === "guest" ? ` (seat ${session.seat ?? "?"})` : ""} | map: ${MAP_NAMES[slug] ?? slug ?? "?"} | screen: ${screen() ?? "?"} | phase: ${session.phase}`);
+    lines.push(`engine: ${session.hash ? session.hash.slice(0, 8) : "?"} (${session.build ? "known" : "UNKNOWN"}, ${session.patched ? "patched" : "not patched"}) | page: ${location.pathname.split("/")[1] || "/"}`);
+    lines.push(`relay: ${session.relay === defaultRelay ? "default" : "custom"} (${session.socket}) | ping via relay: ${Number.isFinite(stats.rtt) ? `${Math.round(stats.rtt)} ms` : "-"}`);
+    lines.push(`direct links: ${session.directEnabled ? "allowed" : "off"}${links?.supported ? "" : " (not supported here)"}`);
+    const routes = Object.entries(links?.summary() ?? {}).map(([seat, link]) => `${seat === "0" ? "host" : `seat ${seat}`}: ${link.state}${Number.isFinite(link.rtt) ? ` ${Math.round(link.rtt)} ms` : ""}`);
+    lines.push(`routes: ${routes.join(", ") || "all through the relay"}`);
+    lines.push(`packets: out ${stats.packetsOut ?? 0}, in ${stats.packetsIn ?? 0} | direct frames: out ${stats.directOut ?? 0}, in ${stats.directIn ?? 0}, refused ${(stats.directInvalid ?? 0) + (stats.directLimited ?? 0)} | lost ${stats.lost ?? 0}, dropped ${stats.dropped ?? 0}`);
+    const present = [...session.guests.values()].filter((g) => g.present).map((g) => g.seat);
+    if (session.mode === "host") lines.push(`guests in the room: ${present.join(", ") || "none"}`);
+    lines.push("");
+    lines.push(`pauses (last ${KEEP}):`);
+    lines.push(...session.pauses.length ? session.pauses.map((p) => `  ${p}`) : ["  none"]);
+    const worst = Math.max(0, ...session.hitches.map((h) => h.ms));
+    lines.push("");
+    lines.push(`stalls over ${HITCH_MS} ms while playing: ${session.hitches.length} kept, worst ${worst} ms${session.hitches.length ? `, last ${ago(session.hitches.at(-1).at)}` : ""}`);
+    lines.push(`sudden jumps over ${JUMP_UNITS} units: ${session.jumps.length} kept${session.jumps.length ? `, last ${session.jumps.at(-1).units} units ${ago(session.jumps.at(-1).at)}` : ""}`);
+    lines.push("");
+    lines.push(`events (last ${LOG_LINES}):`);
+    lines.push(...session.log.slice(-LOG_LINES).map((l) => `  ${l}`));
+    if (session.error) lines.push("", `error shown: ${session.error}`);
+    return lines.join("\n");
+  }
+
   // src/ui/strings.js
   var LANG = /^pt\b/i.test(navigator.language ?? "") ? "pt" : "en";
   var STRINGS = {
@@ -1316,7 +1382,9 @@
       directOn: "Allow direct links",
       directOff: "Relay only",
       directNote: "A direct link cuts the delay, but the other players in the room can then see your IP address. Turn it off to stay behind the relay.",
-      routeSome: (n, total) => `${n} of ${total} direct`
+      routeSome: (n, total) => `${n} of ${total} direct`,
+      copyReport: "Copy diagnostic report",
+      reportNote: "For bug reports: version, routes, counters, pause timings and recent events. No IP address, name or room code."
     },
     pt: {
       tagline: "até 4 jogadores",
@@ -1443,7 +1511,9 @@
       directOn: "Permitir conexão direta",
       directOff: "Só relay",
       directNote: "A conexão direta diminui o atraso, mas os outros jogadores da sala passam a ver o seu endereço IP. Desligue para ficar atrás do relay.",
-      routeSome: (n, total) => `${n} de ${total} direta`
+      routeSome: (n, total) => `${n} de ${total} direta`,
+      copyReport: "Copiar relatório de diagnóstico",
+      reportNote: "Para relatar problemas: versão, rotas, contadores, tempos de pausa e eventos recentes. Sem endereço IP, nome ou código da sala."
     }
   };
   var T = STRINGS[LANG];
@@ -1476,7 +1546,7 @@
   }
 
   // src/session/session.js
-  var VERSION = "2.3.0";
+  var VERSION = "2.3.1";
   var AIM_LEVELS = 10;
   function createSession(search = location.search) {
     const params = new URLSearchParams(search);
@@ -1546,7 +1616,14 @@
       showSettings: false,
       copiedLinkAt: 0,
       copiedCodeAt: 0,
-      log: []
+      copiedReportAt: 0,
+      log: [],
+      pauses: [],
+      // how long each pause took to take hold (see diagnostics.js)
+      hitches: [],
+      // stalls seen while playing
+      jumps: []
+      // sudden camera jumps seen while playing
     };
     session.note = (text) => {
       session.log.push(`${(/* @__PURE__ */ new Date()).toISOString().slice(11, 23)} ${text}`);
@@ -1634,6 +1711,7 @@
         break;
       case "pause":
         session.remotePause = Boolean(message.on);
+        if (message.on) session.remotePauseAt = performance.now();
         break;
       case "lobby":
         if (Array.isArray(message.players)) session.lobby = message;
@@ -1856,21 +1934,25 @@
     }
     const paused = menuOpen || session.peer && Boolean(session.remotePause);
     if (paused) {
-      if (!session.paused) session.note(menuOpen ? "paused" : "paused by another player");
+      if (!session.paused) {
+        session.pausedAt = Date.now();
+        const since = menuOpen ? null : Math.round(performance.now() - (session.remotePauseAt ?? performance.now()));
+        notePause(session, menuOpen ? "guest: own menu paused the game" : `guest: paused ${since} ms after the pause message arrived`);
+      }
       if (!engine.dvar("svPaused")) engine.setDvar("svPaused", 1);
       if (!engine.dvar("clPaused")) engine.setDvar("clPaused", 1);
       engine.keepClientAlive();
     } else {
       if (session.paused) {
         engine.keepClientAlive();
-        session.note("resumed");
+        notePause(session, `guest: resumed after ${Math.round((Date.now() - (session.pausedAt ?? Date.now())) / 100) / 10} s`);
       }
       if (engine.dvar("svPaused")) engine.setDvar("svPaused", 0);
       if (engine.dvar("clPaused")) engine.setDvar("clPaused", 0);
     }
     session.paused = paused;
   }
-  var distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+  var distance2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
   function stayNearHost(session) {
     if (session.hostState?.screen !== "playing") return;
     const view2 = latestView();
@@ -1878,7 +1960,7 @@
       const previous = session.lastViewOrigin;
       session.lastViewMs = view2.ms;
       session.lastViewOrigin = view2.origin;
-      if (!previous || distance(previous, view2.origin) > SPAWN_JUMP) session.spawn ??= { tries: 0, sentAt: 0 };
+      if (!previous || distance2(previous, view2.origin) > SPAWN_JUMP) session.spawn ??= { tries: 0, sentAt: 0 };
     }
     const pending = session.spawn;
     if (!pending || session.paused) return;
@@ -1886,7 +1968,7 @@
     const mine = session.lastViewOrigin;
     if (!host || Date.now() - host.at > HOST_POS_MAX_AGE_MS || !mine) return;
     if (pending.sentAt && Date.now() - pending.sentAt < SPAWN_CHECK_MS) return;
-    if (distance(host.origin, mine) <= NEAR_HOST) {
+    if (distance2(host.origin, mine) <= NEAR_HOST) {
       session.spawn = null;
     } else if (pending.tries >= SPAWN_TRIES) {
       session.spawn = null;
@@ -2314,7 +2396,7 @@
   var MIN_PAUSE_GRACE_MS = 40;
   var DEFAULT_PAUSE_GRACE_MS = 100;
   var MAX_PAUSE_GRACE_MS = 250;
-  var FIXED_CAMERA = 1024;
+  var FIXED_CAMERA2 = 1024;
   function prepareHost(session, Module, args) {
     const engine = new EngineMemory(Module, session.build);
     if (!engine.mailboxesIdle()) throw new Error("unexpectedMemory");
@@ -2375,7 +2457,7 @@
     syncPause(session, present, active, phase, screen2);
     broadcastLobby(session);
     const view2 = latestView();
-    if (present.some(active) && view2 && view2.ms !== session.sentViewMs && !(view2.flags & FIXED_CAMERA)) {
+    if (present.some(active) && view2 && view2.ms !== session.sentViewMs && !(view2.flags & FIXED_CAMERA2)) {
       session.sentViewMs = view2.ms;
       send(session, { t: "pos", o: view2.origin, a: view2.angles });
     }
@@ -2451,7 +2533,10 @@
   function applyHostPause(session, paused, menuOpen) {
     const engine = session.engine;
     if (paused) {
-      if (!session.paused) session.note(menuOpen ? "paused" : "paused by a guest");
+      if (!session.paused) {
+        session.pausedAt = Date.now();
+        notePause(session, `host: ${menuOpen ? "own menu" : "a guest's menu"} paused the game ${Date.now() - (session.pauseWantedAt ?? Date.now())} ms after it was asked (guests told first, server held back ${Math.round(pauseGrace(session))} ms)`);
+      }
       engine.holdServer(true);
       if (!engine.dvar("svPaused")) engine.setDvar("svPaused", 1);
       if (!engine.dvar("clPaused")) engine.setDvar("clPaused", 1);
@@ -2461,7 +2546,7 @@
       engine.setDvar("svPaused", 0);
       if (!menuOpen) engine.setDvar("clPaused", 0);
       engine.keepClientAlive();
-      session.note("resumed");
+      notePause(session, `host: resumed after ${Math.round((Date.now() - (session.pausedAt ?? Date.now())) / 100) / 10} s`);
     }
     session.paused = paused;
   }
@@ -3562,7 +3647,13 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
   function directBlocks(session, inRoom) {
     if (!inRoom) return [];
     const label = session.directEnabled ? T.directOff : T.directOn;
-    return [{ kind: "text", cls: "muted small", text: T.directNote }, { kind: "buttons", buttons: [{ act: "direct", label, style: "ghost" }] }];
+    const copied = Date.now() - session.copiedReportAt < COPIED_MS;
+    return [
+      { kind: "text", cls: "muted small", text: T.directNote },
+      { kind: "buttons", buttons: [{ act: "direct", label, style: "ghost" }] },
+      { kind: "text", cls: "muted small", text: T.reportNote },
+      { kind: "buttons", buttons: [{ act: "copyReport", label: copied ? T.copied : T.copyReport, style: copied ? "done" : "ghost" }] }
+    ];
   }
   function controllerBlocks(session) {
     const pad = session.gamepad;
@@ -3696,7 +3787,10 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
       session.direct?.tick();
       if (session.mode === "host") hostTick(session);
       else if (session.mode === "guest") guestTick(session);
-      if (session.mode) reportHidden(session);
+      if (session.mode) {
+        reportHidden(session);
+        if (screen() === "playing") sampleView(session);
+      }
       funTick(session);
     } catch (error) {
       session.error = error.message;
@@ -3728,6 +3822,7 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
       },
       copyLink: () => copy(session, inviteLink(session), "copiedLinkAt"),
       copyCode: () => copy(session, session.room, "copiedCodeAt"),
+      copyReport: () => copy(session, buildReport(session, DEFAULT_RELAY), "copiedReportAt"),
       leave: () => {
         session.pump?.postMessage({ type: "close" });
         go(location.pathname);

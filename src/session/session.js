@@ -5,7 +5,7 @@ import { T } from "../ui/strings.js";
 import { isLoopback, normalizeRelay, pickRelay } from "../util/relay.js";
 import { cleanName, readSetting } from "../util/settings.js";
 
-export const VERSION = "2.3.0";
+export const VERSION = "2.3.1";
 export const AIM_LEVELS = 10;
 
 export function createSession(search = location.search) {
@@ -74,7 +74,11 @@ export function createSession(search = location.search) {
     showSettings: false,
     copiedLinkAt: 0,
     copiedCodeAt: 0,
+    copiedReportAt: 0,
     log: [],
+    pauses: [], // how long each pause took to take hold (see diagnostics.js)
+    hitches: [], // stalls seen while playing
+    jumps: [], // sudden camera jumps seen while playing
   };
 
   session.note = (text) => {

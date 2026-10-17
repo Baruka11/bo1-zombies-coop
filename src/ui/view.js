@@ -214,7 +214,13 @@ function routeLabel(session) {
 function directBlocks(session, inRoom) {
   if (!inRoom) return [];
   const label = session.directEnabled ? T.directOff : T.directOn;
-  return [{ kind: "text", cls: "muted small", text: T.directNote }, { kind: "buttons", buttons: [{ act: "direct", label, style: "ghost" }] }];
+  const copied = Date.now() - session.copiedReportAt < COPIED_MS;
+  return [
+    { kind: "text", cls: "muted small", text: T.directNote },
+    { kind: "buttons", buttons: [{ act: "direct", label, style: "ghost" }] },
+    { kind: "text", cls: "muted small", text: T.reportNote },
+    { kind: "buttons", buttons: [{ act: "copyReport", label: copied ? T.copied : T.copyReport, style: copied ? "done" : "ghost" }] },
+  ];
 }
 
 function controllerBlocks(session) {

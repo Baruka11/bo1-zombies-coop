@@ -7,6 +7,7 @@ import { EngineMemory, NORMAL_SPEED } from "../engine/memory.js";
 import { devmapZone, gameSettings, insertBeforeDevmap, latestView, screen as pageScreen } from "../game/page.js";
 import { send } from "../net/pump.js";
 import { broadcastLobby } from "./lobby.js";
+import { notePause } from "../util/diagnostics.js";
 import { guest, sendGameInfo } from "./messages.js";
 
 // The server tells loopback clients apart by qport alone (every loopback address looks the same to it) and refuses
@@ -205,7 +206,10 @@ function pauseDue(session, wanted) {
 function applyHostPause(session, paused, menuOpen) {
   const engine = session.engine;
   if (paused) {
-    if (!session.paused) session.note(menuOpen ? "paused" : "paused by a guest");
+    if (!session.paused) {
+      session.pausedAt = Date.now();
+      notePause(session, `host: ${menuOpen ? "own menu" : "a guest's menu"} paused the game ${Date.now() - (session.pauseWantedAt ?? Date.now())} ms after it was asked (guests told first, server held back ${Math.round(pauseGrace(session))} ms)`);
+    }
     engine.holdServer(true);
     if (!engine.dvar("svPaused")) engine.setDvar("svPaused", 1);
     if (!engine.dvar("clPaused")) engine.setDvar("clPaused", 1);
@@ -215,7 +219,7 @@ function applyHostPause(session, paused, menuOpen) {
     engine.setDvar("svPaused", 0);
     if (!menuOpen) engine.setDvar("clPaused", 0);
     engine.keepClientAlive();
-    session.note("resumed");
+    notePause(session, `host: resumed after ${Math.round((Date.now() - (session.pausedAt ?? Date.now())) / 100) / 10} s`);
   }
   session.paused = paused;
 }

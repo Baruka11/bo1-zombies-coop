@@ -4,6 +4,7 @@ import { CONNECTION, SLOT } from "../engine/builds.js";
 import { EngineMemory, NORMAL_SPEED } from "../engine/memory.js";
 import { applyGameSettings, BASE, currentGuns, currentHorde, currentSlug, devmapZone, go, insertBeforeDevmap, latestView, MAP_NAMES, screen as pageScreen } from "../game/page.js";
 import { send } from "../net/pump.js";
+import { notePause } from "../util/diagnostics.js";
 import { introduce } from "./messages.js";
 import { validSeat } from "./session.js";
 
@@ -203,14 +204,18 @@ function syncGuestPause(session, engine, screen) {
   }
   const paused = menuOpen || (session.peer && Boolean(session.remotePause));
   if (paused) {
-    if (!session.paused) session.note(menuOpen ? "paused" : "paused by another player");
+    if (!session.paused) {
+      session.pausedAt = Date.now();
+      const since = menuOpen ? null : Math.round(performance.now() - (session.remotePauseAt ?? performance.now()));
+      notePause(session, menuOpen ? "guest: own menu paused the game" : `guest: paused ${since} ms after the pause message arrived`);
+    }
     if (!engine.dvar("svPaused")) engine.setDvar("svPaused", 1);
     if (!engine.dvar("clPaused")) engine.setDvar("clPaused", 1);
     engine.keepClientAlive();
   } else {
     if (session.paused) {
       engine.keepClientAlive();
-      session.note("resumed");
+      notePause(session, `guest: resumed after ${Math.round((Date.now() - (session.pausedAt ?? Date.now())) / 100) / 10} s`);
     }
     if (engine.dvar("svPaused")) engine.setDvar("svPaused", 0);
     if (engine.dvar("clPaused")) engine.setDvar("clPaused", 0);

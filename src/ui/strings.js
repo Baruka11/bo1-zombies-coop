@@ -116,7 +116,9 @@ const STRINGS = {
     directOn: "Allow direct links",
     directOff: "Relay only",
     directNote: "A direct link cuts the delay, but the other players in the room can then see your IP address. Turn it off to stay behind the relay.",
-    routeSome: (n, total) => `${n} of ${total} direct`
+    routeSome: (n, total) => `${n} of ${total} direct`,
+    copyReport: "Copy diagnostic report",
+    reportNote: "For bug reports: version, routes, counters, pause timings and recent events. No IP address, name or room code."
   },
   pt: {
     tagline: "at\xE9 4 jogadores",
@@ -232,7 +234,9 @@ const STRINGS = {
     directOn: "Permitir conexão direta",
     directOff: "Só relay",
     directNote: "A conexão direta diminui o atraso, mas os outros jogadores da sala passam a ver o seu endereço IP. Desligue para ficar atrás do relay.",
-    routeSome: (n, total) => `${n} de ${total} direta`
+    routeSome: (n, total) => `${n} de ${total} direta`,
+    copyReport: "Copiar relatório de diagnóstico",
+    reportNote: "Para relatar problemas: versão, rotas, contadores, tempos de pausa e eventos recentes. Sem endereço IP, nome ou código da sala."
   }
 };
 export const T = STRINGS[LANG];

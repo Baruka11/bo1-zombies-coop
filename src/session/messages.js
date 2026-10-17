@@ -66,6 +66,7 @@ function onGuestMessage(session, message) {
       break;
     case "pause":
       session.remotePause = Boolean(message.on);
+      if (message.on) session.remotePauseAt = performance.now();
       break;
     case "lobby":
       if (Array.isArray(message.players)) session.lobby = message;

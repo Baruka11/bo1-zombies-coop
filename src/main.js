@@ -14,6 +14,7 @@ import { LANG, T } from "./ui/strings.js";
 import { view } from "./ui/view.js";
 import { DEFAULT_RELAY, inviteLink, normalizeRelay } from "./util/relay.js";
 import { createFun, funActions, funTick, watchConsole } from "./fun/fun.js";
+import { buildReport, sampleView } from "./util/diagnostics.js";
 import { cleanName, guestIdFor, saveSetting } from "./util/settings.js";
 import { checkForUpdate, RELAY_GUIDE } from "./util/updates.js";
 
@@ -100,7 +101,10 @@ function tick(session) {
     session.direct?.tick();
     if (session.mode === "host") hostTick(session);
     else if (session.mode === "guest") guestTick(session);
-    if (session.mode) reportHidden(session);
+    if (session.mode) {
+      reportHidden(session);
+      if (screen() === "playing") sampleView(session);
+    }
     funTick(session);
   } catch (error) {
     session.error = error.message;
@@ -143,6 +147,7 @@ function actions(session) {
     },
     copyLink: () => copy(session, inviteLink(session), "copiedLinkAt"),
     copyCode: () => copy(session, session.room, "copiedCodeAt"),
+    copyReport: () => copy(session, buildReport(session, DEFAULT_RELAY), "copiedReportAt"),
     leave: () => {
       session.pump?.postMessage({ type: "close" });
       go(location.pathname);
