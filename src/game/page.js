@@ -1,7 +1,9 @@
 // What the extension reads from (or does to) vel.gg's own page: the map being played, the screen it shows, the
 // arguments it starts the engine with.
 
-export const BASE = "/bo1z/";
+// vel.gg serves the same site under /bsz/ (current) and /bo1z/ (the older address); stay on whichever one is open.
+const SITE_PATH = /^\/(bsz|bo1z)(?=\/|$)/;
+export const BASE = `/${location.pathname.match(SITE_PATH)?.[1] ?? "bsz"}/`;
 
 /** Engine map name -> vel.gg URL slug. */
 export const MAP_SLUGS = {
@@ -43,7 +45,7 @@ export function currentZone() {
 export function currentSlug() {
   const zone = document.documentElement?.dataset.map;
   if (zone && MAP_SLUGS[zone]) return MAP_SLUGS[zone];
-  const match = location.pathname.match(/^\/(?:bo1z\/)?([a-z]+)\/?$/);
+  const match = location.pathname.match(/^\/(?:(?:bsz|bo1z)\/)?([a-z]+)\/?$/);
   return match && Object.values(MAP_SLUGS).includes(match[1]) ? match[1] : null;
 }
 

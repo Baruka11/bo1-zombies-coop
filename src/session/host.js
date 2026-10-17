@@ -21,6 +21,9 @@ const STATE_REPEAT_MS = 2000;
 const KICK_AFTER_LEFT_MS = 15000;
 const KICK_SPACING_MS = 15000;
 const MAX_KICKS = 4;
+const MIN_PAUSE_GRACE_MS = 40;
+const DEFAULT_PAUSE_GRACE_MS = 100;
+const MAX_PAUSE_GRACE_MS = 250;
 // pm_flags bit set while the player's view is a fixed camera (the level intro, the end-of-game scoreboard). Guests
 // must not be sent there: it hangs above the map, and a guest teleported to it falls to its death.
 const FIXED_CAMERA = 0x400;
@@ -157,11 +160,7 @@ function syncPause(session, present, active, phase, screen) {
   session.menuOpen = menuOpen;
   const linked = present.filter((g) => active(g) && phase(g) === "connected");
   const connecting = present.some((g) => !active(g) && CONNECTING.includes(phase(g)));
-  if (engine) applyHostPause(session, linked.length > 0 && !connecting && (menuOpen || linked.some((g) => g.pause)), menuOpen);
-  if (engine && !session.paused && present.some((g) => !active(g))) {
-    if (engine.dvar("clPaused")) engine.setDvar("clPaused", 0);
-    if (engine.dvar("svPaused")) engine.setDvar("svPaused", 0);
-  }
+  // Tell the guests first: they freeze on the message, and our server must not go quiet while they still expect it.
   for (const g of present) {
     const on = menuOpen || linked.some((other) => other !== g && other.pause);
     if (on !== g.sentPause) {
@@ -169,6 +168,34 @@ function syncPause(session, present, active, phase, screen) {
       send(session, { t: "pause", on, to: g.seat });
     }
   }
+  const wanted = linked.length > 0 && !connecting && (menuOpen || linked.some((g) => g.pause));
+  if (engine) applyHostPause(session, pauseDue(session, wanted), menuOpen);
+  if (engine && !session.paused && present.some((g) => !active(g))) {
+    if (engine.dvar("clPaused")) engine.setDvar("clPaused", 0);
+    if (engine.dvar("svPaused")) engine.setDvar("svPaused", 0);
+  }
+}
+
+/**
+ * Time the message needs to reach the farthest guest: half the slowest round trip, plus a little for their tick.
+ * Our server keeps running that long after a pause is asked for, so guests have frozen by the time it stops
+ * answering instead of seeing it go silent first (that gap is what played as lag and teleporting).
+ */
+function pauseGrace(session) {
+  const rtts = Object.values(session.stats?.rtts ?? {}).filter(Number.isFinite);
+  return rtts.length ? Math.min(MAX_PAUSE_GRACE_MS, Math.max(MIN_PAUSE_GRACE_MS, Math.max(...rtts) / 2 + 30)) : DEFAULT_PAUSE_GRACE_MS;
+}
+
+/** Whether the server should be frozen now: a pause is wanted and the guests have had time to hear about it. */
+function pauseDue(session, wanted) {
+  if (!wanted) {
+    session.pauseWantedAt = null;
+    return false;
+  }
+  if (session.paused) return true;
+  const now = Date.now();
+  session.pauseWantedAt ??= now;
+  return now - session.pauseWantedAt >= pauseGrace(session);
 }
 
 function applyHostPause(session, paused, menuOpen) {

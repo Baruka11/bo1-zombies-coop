@@ -1,4 +1,4 @@
-// BO1 Zombies Co-op 2.2.1 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
+// BO1 Zombies Co-op 2.2.3 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
 (() => {
   // relay/src/protocol.js
   var ROLES = Object.freeze(["host", "guest"]);
@@ -29,7 +29,68 @@
 
   // src/engine/builds.js
   var BUILDS = {
-    // Served at https://vel.gg/bo1z/ since 2026-10-14 (the release with vel.gg's own co-op), 9,902,179 bytes. Same
+    // Served at https://vel.gg/bsz/ (and still /bo1z/) since 2026-10-17, 9,908,677 bytes. Same functions and struct
+    // layouts as the build below: the code is unchanged apart from addresses (static data shifted by +128 around the
+    // game module, +1264 around the dvars and loopback queues, +1280 around svs, +1392 at the intro state) and two
+    // function indices (CL_CreateCmd and CG_ScriptSndLengthNotify moved up by one).
+    "42be1c35025afa61ed1f0fc4558ca15c45c49b37dfdc458d3ebbe30f8c958036": {
+      functions: {
+        svFrame: [2963, "__wrap__Z8SV_Frameii"],
+        netGetLoopPacket: [4119, "NET_GetLoopPacket(netsrc_t, netadr_t*, msg_t*)"],
+        cbufAddText: [286, "Cbuf_AddText(int, char const*)"],
+        svWaitServer: [1654, "SV_WaitServer()"],
+        assertHandler: [170, "Assert_MyHandler(char const*, int, int, char const*, ...)"],
+        cachedTagUpdate: [4410, "CachedTag_UpdateTagInternal(centity_s const*, cached_client_tag_t*, unsigned int, int, bool)"],
+        comError: [179, "Com_Error(errorParm_t, char const*, ...)"],
+        clCreateCmd: [6686, "CL_CreateCmd(usercmd_s*, int)"],
+        cgScriptSndLengthNotify: [6721, "CG_ScriptSndLengthNotify(int, int)"]
+      },
+      bytePatches: [
+        {
+          fn: "clCreateCmd",
+          find: "10 ef 06 41 07 46 0d 00 20 05 20 05 28 02 04 41 04 72 36 02 04",
+          replace: "10 ef 06 41 07 46 0d 00 20 05 20 05 28 02 04 41 00 72 36 02 04"
+        },
+        {
+          fn: "cgScriptSndLengthNotify",
+          role: "guest",
+          find: "41 d0 db 8a c2 00 28 02 00 2d 00 18 41 01 46 04 40",
+          replace: "41 d0 db 8a c2 00 28 02 00 2d 00 18 41 02 46 04 40"
+        }
+      ],
+      mailbox: { command: 1008, freeze: 1012, inboundRing: 1016 },
+      loopback: { base: 139466576, stride: 20360, slots: 16, slotSize: 1272, dataMax: 1264, offLen: 1264, offPort: 1268, offGet: 20352, offSend: 20356 },
+      reservedPorts: [0, 1, 1773],
+      server: {
+        allowNetPackets: 146182322,
+        clientsPtr: 146048924,
+        clientStride: 544120,
+        clientState: 0,
+        clientAddrType: 32,
+        clientAddrPort: 40
+      },
+      client: {
+        connectionState: 14090472,
+        clcPtr: 44481716,
+        serverAddressPort: 24,
+        lastPacketTime: 12,
+        codeTimeScale: 138587744
+      },
+      dvars: { comSvRunning: 138587600, svPaused: 138587588, clPaused: 138587592, comMaxClients: 138587440 },
+      dvarValue: 24,
+      introState: 151951500,
+      loopbackAddressType: 2,
+      fun: {
+        entities: 91240656,
+        entitySize: 760,
+        ent: { client: 324, flags: 372, health: 404 },
+        entFlags: { god: 1, demigod: 2, notarget: 4 },
+        client: { ammoPools: 832, ammoClips: 952, ammoSlots: 15, speedScale: 10088, score: 10276, flags: 10396 },
+        clientFlags: { noclip: 1, ufo: 2 },
+        cheatsDvar: 90624344
+      }
+    },
+    // Served at https://vel.gg/bo1z/ from 2026-10-14 (the release with vel.gg's own co-op), 9,902,179 bytes. Same
     // functions and struct layouts as the build below, moved around.
     "c025d5383791b8a3b4244713e6f3e75d958d550d3f6c83a49ac3928be2ccdb5c": {
       functions: {
@@ -187,7 +248,8 @@
   var SLOT = Object.freeze({ free: 0, zombie: 1, reconnecting: 2, connected: 3, loading: 4, active: 5 });
 
   // src/game/page.js
-  var BASE = "/bo1z/";
+  var SITE_PATH = /^\/(bsz|bo1z)(?=\/|$)/;
+  var BASE = `/${location.pathname.match(SITE_PATH)?.[1] ?? "bsz"}/`;
   var MAP_SLUGS = {
     zombie_pentagon: "five",
     zombie_theater: "kino",
@@ -222,7 +284,7 @@
   function currentSlug() {
     const zone = document.documentElement?.dataset.map;
     if (zone && MAP_SLUGS[zone]) return MAP_SLUGS[zone];
-    const match = location.pathname.match(/^\/(?:bo1z\/)?([a-z]+)\/?$/);
+    const match = location.pathname.match(/^\/(?:(?:bsz|bo1z)\/)?([a-z]+)\/?$/);
     return match && Object.values(MAP_SLUGS).includes(match[1]) ? match[1] : null;
   }
   var currentHorde = () => document.documentElement?.dataset.mode === "horde" || new URLSearchParams(location.search).get("horde") === "1";
@@ -952,7 +1014,7 @@
   }
 
   // src/session/session.js
-  var VERSION = "2.2.1";
+  var VERSION = "2.2.3";
   var AIM_LEVELS = 10;
   function createSession(search = location.search) {
     const params = new URLSearchParams(search);
@@ -1774,6 +1836,9 @@
   var KICK_AFTER_LEFT_MS = 15e3;
   var KICK_SPACING_MS = 15e3;
   var MAX_KICKS = 4;
+  var MIN_PAUSE_GRACE_MS = 40;
+  var DEFAULT_PAUSE_GRACE_MS = 100;
+  var MAX_PAUSE_GRACE_MS = 250;
   var FIXED_CAMERA = 1024;
   function prepareHost(session, Module, args) {
     const engine = new EngineMemory(Module, session.build);
@@ -1876,11 +1941,6 @@
     session.menuOpen = menuOpen;
     const linked = present.filter((g) => active(g) && phase(g) === "connected");
     const connecting = present.some((g) => !active(g) && CONNECTING.includes(phase(g)));
-    if (engine) applyHostPause(session, linked.length > 0 && !connecting && (menuOpen || linked.some((g) => g.pause)), menuOpen);
-    if (engine && !session.paused && present.some((g) => !active(g))) {
-      if (engine.dvar("clPaused")) engine.setDvar("clPaused", 0);
-      if (engine.dvar("svPaused")) engine.setDvar("svPaused", 0);
-    }
     for (const g of present) {
       const on = menuOpen || linked.some((other) => other !== g && other.pause);
       if (on !== g.sentPause) {
@@ -1888,6 +1948,26 @@
         send(session, { t: "pause", on, to: g.seat });
       }
     }
+    const wanted = linked.length > 0 && !connecting && (menuOpen || linked.some((g) => g.pause));
+    if (engine) applyHostPause(session, pauseDue(session, wanted), menuOpen);
+    if (engine && !session.paused && present.some((g) => !active(g))) {
+      if (engine.dvar("clPaused")) engine.setDvar("clPaused", 0);
+      if (engine.dvar("svPaused")) engine.setDvar("svPaused", 0);
+    }
+  }
+  function pauseGrace(session) {
+    const rtts = Object.values(session.stats?.rtts ?? {}).filter(Number.isFinite);
+    return rtts.length ? Math.min(MAX_PAUSE_GRACE_MS, Math.max(MIN_PAUSE_GRACE_MS, Math.max(...rtts) / 2 + 30)) : DEFAULT_PAUSE_GRACE_MS;
+  }
+  function pauseDue(session, wanted) {
+    if (!wanted) {
+      session.pauseWantedAt = null;
+      return false;
+    }
+    if (session.paused) return true;
+    const now = Date.now();
+    session.pauseWantedAt ??= now;
+    return now - session.pauseWantedAt >= pauseGrace(session);
   }
   function applyHostPause(session, paused, menuOpen) {
     const engine = session.engine;
@@ -3057,6 +3137,7 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
 
   // src/main.js
   var TICK_MS = 50;
+  var PAUSE_WATCH_MS = 8;
   var LANG_QUERY = LANG === "pt" ? "?lang=pt#" : "#";
   var USAGE_REFRESH_MS = 6e5;
   if (!window.__bo1Coop) start();
@@ -3097,6 +3178,21 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
       if (session.mode === "host") holdStart(session, card.host);
     }
     setInterval(() => tick(session), TICK_MS);
+    watchPause(session);
+  }
+  function watchPause(session) {
+    const key = () => {
+      const menu = Boolean(session.engine?.menuOpen()) && screen() === "playing";
+      const guests = [...session.guests.values()].map((g) => g.pause ? 1 : 0).join("");
+      return `${menu}|${session.remotePause ? 1 : 0}|${guests}`;
+    };
+    let seen = key();
+    setInterval(() => {
+      const now = key();
+      if (now === seen) return;
+      seen = now;
+      if (session.mode) tick(session);
+    }, PAUSE_WATCH_MS);
   }
   function tick(session) {
     try {

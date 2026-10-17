@@ -1,7 +1,7 @@
 // Entry point, injected into vel.gg's page before its own scripts run (manifest: run_at document_start, world MAIN).
 import { createRoomCode, normalizeRoomCode } from "../relay/src/protocol.js";
 import { CONNECTION } from "./engine/builds.js";
-import { BASE, go, keepSinglePlayer } from "./game/page.js";
+import { BASE, go, keepSinglePlayer, screen } from "./game/page.js";
 import { AIM_SPEEDS, Gamepad } from "./input/gamepad.js";
 import { startPump } from "./net/pump.js";
 import { guestTick, moveToHost } from "./session/guest.js";
@@ -18,6 +18,7 @@ import { cleanName, guestIdFor, saveSetting } from "./util/settings.js";
 import { checkForUpdate, RELAY_GUIDE } from "./util/updates.js";
 
 const TICK_MS = 50;
+const PAUSE_WATCH_MS = 8;
 const LANG_QUERY = LANG === "pt" ? "?lang=pt#" : "#";
 const USAGE_REFRESH_MS = 600000;
 
@@ -71,6 +72,27 @@ function start() {
   }
 
   setInterval(() => tick(session), TICK_MS);
+  watchPause(session);
+}
+
+/**
+ * Opening a menu pauses everyone, and every millisecond between the click and the pause is a moment where players
+ * still move on a world that is about to stop. The regular tick only looks every 50 ms, so this watches the few
+ * things that start or end a pause much more often and runs a tick the moment one of them changes.
+ */
+function watchPause(session) {
+  const key = () => {
+    const menu = Boolean(session.engine?.menuOpen()) && screen() === "playing";
+    const guests = [...session.guests.values()].map((g) => (g.pause ? 1 : 0)).join("");
+    return `${menu}|${session.remotePause ? 1 : 0}|${guests}`;
+  };
+  let seen = key();
+  setInterval(() => {
+    const now = key();
+    if (now === seen) return;
+    seen = now;
+    if (session.mode) tick(session);
+  }, PAUSE_WATCH_MS);
 }
 
 function tick(session) {
