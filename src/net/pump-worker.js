@@ -37,7 +37,7 @@ const state = {
   directBuckets: new Map(),
   lastFlush: 0,
   looping: false,
-  stats: { packetsOut: 0, packetsIn: 0, bytesOut: 0, bytesIn: 0, framesOut: 0, framesIn: 0, dropped: 0, lost: 0, rtt: null, rtts: {}, directIn: 0, directOut: 0, directInvalid: 0, directLimited: 0 },
+  stats: { packetsOut: 0, packetsIn: 0, bytesOut: 0, bytesIn: 0, framesOut: 0, framesIn: 0, dropped: 0, droppedIn: 0, droppedOut: 0, lost: 0, rtt: null, rtts: {}, directIn: 0, directOut: 0, directInvalid: 0, directLimited: 0 },
 };
 const hosting = () => state.role === "host";
 const post = (message, transfer) => self.postMessage(message, transfer ?? []);
@@ -167,6 +167,7 @@ function accept(items) {
   }
   if (state.inbox.length > INBOX_LIMIT) {
     state.stats.dropped += state.inbox.length - INBOX_LIMIT;
+    state.stats.droppedIn += state.inbox.length - INBOX_LIMIT; // the engine was not taking packets (paused, loading)
     state.inbox.splice(0, state.inbox.length - INBOX_LIMIT);
   }
   pump();
@@ -240,6 +241,7 @@ function flush(now) {
     // everything went over direct links
   } else if (socket?.readyState !== WebSocket.OPEN) {
     state.stats.dropped += viaRelay.length;
+    state.stats.droppedOut += viaRelay.length; // the relay connection was not open
   } else {
     const perPacket = seats ? 3 : 2;
     let batch = [];

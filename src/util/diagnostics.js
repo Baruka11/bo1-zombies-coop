@@ -17,8 +17,26 @@ const remember = (list, entry) => {
 
 /** A pause (or its end) with how long it took: `detail` is a short sentence. Also goes into the event log. */
 export function notePause(session, detail) {
+  if (/resumed/.test(detail)) session.resumedAt = Date.now();
   session.note(detail);
   remember(session.pauses, `${new Date().toISOString().slice(11, 23)} ${detail}`);
+}
+
+/** What was going on when a stall or a jump was seen: the likely causes are told apart from plain play. */
+function context(session) {
+  const now = Date.now();
+  if (now - (session.resumedAt ?? 0) < 4000) return "just after a pause";
+  if (now - (session.rosterChangedAt ?? 0) < 15000) return "a player was joining or leaving";
+  return "steady play";
+}
+
+const clock = (at) => new Date(at).toISOString().slice(11, 19);
+
+/** "12 steady play, 3 just after a pause": how many of the kept entries each situation accounts for. */
+function byContext(entries) {
+  const counts = new Map();
+  for (const entry of entries) counts.set(entry.why, (counts.get(entry.why) ?? 0) + 1);
+  return [...counts].map(([why, n]) => `${n} ${why}`).join(", ");
 }
 
 /**
@@ -37,17 +55,16 @@ export function sampleView(session) {
   const now = performance.now();
   if (sample.at) {
     const gap = now - sample.at;
-    if (gap > HITCH_MS) remember(session.hitches, { at: Date.now(), ms: Math.round(gap) });
+    if (gap > HITCH_MS) remember(session.hitches, { at: Date.now(), ms: Math.round(gap), why: context(session) });
     const moved = distance(sample.origin, view.origin);
     const ours = Date.now() - (session.movedAt ?? 0) < 3000; // we teleported ourselves to the host
-    if (moved > JUMP_UNITS && !ours) remember(session.jumps, { at: Date.now(), units: Math.round(moved), ms: Math.round(gap) });
+    if (moved > JUMP_UNITS && !ours) remember(session.jumps, { at: Date.now(), units: Math.round(moved), ms: Math.round(gap), why: context(session) });
   }
   sample.ms = view.ms;
   sample.at = now;
   sample.origin = view.origin;
 }
 
-const ago = (at) => `${Math.round((Date.now() - at) / 1000)} s ago`;
 
 export function buildReport(session, defaultRelay) {
   const lines = [];
@@ -61,7 +78,7 @@ export function buildReport(session, defaultRelay) {
   lines.push(`direct links: ${session.directEnabled ? "allowed" : "off"}${links?.supported ? "" : " (not supported here)"}`);
   const routes = Object.entries(links?.summary() ?? {}).map(([seat, link]) => `${seat === "0" ? "host" : `seat ${seat}`}: ${link.state}${Number.isFinite(link.rtt) ? ` ${Math.round(link.rtt)} ms` : ""}`);
   lines.push(`routes: ${routes.join(", ") || "all through the relay"}`);
-  lines.push(`packets: out ${stats.packetsOut ?? 0}, in ${stats.packetsIn ?? 0} | direct frames: out ${stats.directOut ?? 0}, in ${stats.directIn ?? 0}, refused ${(stats.directInvalid ?? 0) + (stats.directLimited ?? 0)} | lost ${stats.lost ?? 0}, dropped ${stats.dropped ?? 0}`);
+  lines.push(`packets: out ${stats.packetsOut ?? 0}, in ${stats.packetsIn ?? 0} | direct frames: out ${stats.directOut ?? 0}, in ${stats.directIn ?? 0}, refused ${(stats.directInvalid ?? 0) + (stats.directLimited ?? 0)} | lost ${stats.lost ?? 0}, dropped ${stats.dropped ?? 0} (inbound while the engine was not taking packets ${stats.droppedIn ?? 0}, outbound with the relay closed ${stats.droppedOut ?? 0})`);
   const present = [...session.guests.values()].filter((g) => g.present).map((g) => g.seat);
   if (session.mode === "host") lines.push(`guests in the room: ${present.join(", ") || "none"}`);
 
@@ -71,8 +88,10 @@ export function buildReport(session, defaultRelay) {
 
   const worst = Math.max(0, ...session.hitches.map((h) => h.ms));
   lines.push("");
-  lines.push(`stalls over ${HITCH_MS} ms while playing: ${session.hitches.length} kept, worst ${worst} ms${session.hitches.length ? `, last ${ago(session.hitches.at(-1).at)}` : ""}`);
-  lines.push(`sudden jumps over ${JUMP_UNITS} units: ${session.jumps.length} kept${session.jumps.length ? `, last ${session.jumps.at(-1).units} units ${ago(session.jumps.at(-1).at)}` : ""}`);
+  lines.push(`stalls over ${HITCH_MS} ms while playing: ${session.hitches.length} kept, worst ${worst} ms${session.hitches.length ? ` (${byContext(session.hitches)})` : ""}`);
+  lines.push(...session.hitches.slice(-8).map((h) => `  ${clock(h.at)} ${h.ms} ms, ${h.why}`));
+  lines.push(`sudden jumps over ${JUMP_UNITS} units: ${session.jumps.length} kept${session.jumps.length ? ` (${byContext(session.jumps)})` : ""}`);
+  lines.push(...session.jumps.slice(-8).map((j) => `  ${clock(j.at)} ${j.units} units in ${j.ms} ms, ${j.why}`));
 
   lines.push("");
   lines.push(`events (last ${LOG_LINES}):`);

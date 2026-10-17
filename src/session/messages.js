@@ -96,6 +96,7 @@ function guestArrived(session, seat) {
   if (!validSeat(seat)) return;
   const record = guest(session, seat);
   if (!record.present) session.note(`player ${seat + 1} joined the room`);
+  session.rosterChangedAt = Date.now();
   Object.assign(record, { present: true, state: null, pause: false, sent: {}, sentPause: undefined });
   session.sentLobby = null;
   sendGameInfo(session, seat);
@@ -105,6 +106,7 @@ function guestLeft(session, seat) {
   const record = guest(session, seat);
   Object.assign(record, { present: false, leftAt: Date.now(), pause: false });
   session.note(`player ${seat + 1} left the room`);
+  session.rosterChangedAt = Date.now();
 }
 
 /** Guest: tells the host where it is in the join process (and its name). Repeated, so a lost message heals. */
