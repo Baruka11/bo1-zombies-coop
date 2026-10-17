@@ -10,7 +10,7 @@ import { hostTick } from "./session/host.js";
 import { onControl } from "./session/messages.js";
 import { createSession } from "./session/session.js";
 import { Card } from "./ui/card.js";
-import { LANG, T } from "./ui/strings.js";
+import { LANG, setLanguage, T } from "./ui/strings.js";
 import { view } from "./ui/view.js";
 import { DEFAULT_RELAY, inviteLink, normalizeRelay } from "./util/relay.js";
 import { createFun, funActions, funTick, watchConsole } from "./fun/fun.js";
@@ -20,7 +20,8 @@ import { checkForUpdate, RELAY_GUIDE } from "./util/updates.js";
 
 const TICK_MS = 50;
 const PAUSE_WATCH_MS = 8;
-const LANG_QUERY = LANG === "pt" ? "?lang=pt#" : "#";
+// The install guide exists in English and Portuguese only.
+const langQuery = () => (LANG === "pt" ? "?lang=pt#" : "#");
 const USAGE_REFRESH_MS = 600000;
 
 if (!window.__bo1Coop) start();
@@ -155,7 +156,7 @@ function actions(session) {
     startNow: () => (session.startAlone = true),
     rejoin: () => location.reload(),
     openUpdate: () => window.open(session.update?.url, "_blank", "noopener"),
-    openRelayGuide: () => window.open(`${RELAY_GUIDE.replace("#", LANG_QUERY)}`, "_blank", "noopener"),
+    openRelayGuide: () => window.open(`${RELAY_GUIDE.replace("#", langQuery())}`, "_blank", "noopener"),
     goToHost: () => moveToHost(session, "button"),
     settings: () => (session.showSettings = !session.showSettings),
     saveName: (text) => {
@@ -169,6 +170,8 @@ function actions(session) {
       saveSetting("direct", session.directEnabled ? "" : "0");
       session.direct?.setEnabled(session.directEnabled);
     },
+    // The card's language: "" is automatic (the browser's). It applies at once, no reload.
+    lang: (code) => setLanguage(code),
     editRelay: () => (session.editRelay = !session.editRelay),
     // From the over-quota notice: open settings straight at the relay field.
     editRelayNow: () => {

@@ -1,5 +1,6 @@
 // The card in the page's top-right corner. It renders a plain view model (see view.js) into a closed shadow root and
 // turns clicks on [data-act] elements into handler calls; it knows nothing about the game itself.
+import { T } from "./strings.js";
 import { STYLE } from "./styles.js";
 
 // BO1 zombies scoreboard colours for players 1 to 4.
@@ -52,6 +53,7 @@ export class Card {
     const focused = this.root.activeElement?.dataset?.field;
     const previous = new Map([...this.root.querySelectorAll("input[data-field]")].map((i) => [i.dataset.field, i.value]));
     this.view = key;
+    this.collapseButton.title = this.host.classList.contains("collapsed") ? T.expand : T.minimise;
     this.chip.className = `chip ${view2.chip?.tone ?? ""}`;
     this.chip.textContent = view2.chip?.text ?? "";
     this.tagline.textContent = view2.tagline ?? "";

@@ -1,5 +1,6 @@
 // Turns the session into the card's view model: a header chip, a list of blocks, and the compact pill shown while
 // playing. Pure function of the session (plus the page's screen), recomputed every tick.
+import { LANGUAGES, savedLanguage } from "./strings.js";
 import { MAX_GUESTS } from "../../relay/src/protocol.js";
 import { currentHorde, currentSlug, currentZone, MAP_NAMES, MAP_SLUGS, screen as pageScreen } from "../game/page.js";
 import { AIM_SPEEDS } from "../input/gamepad.js";
@@ -186,7 +187,12 @@ function mapBlock(slug, horde, sub) {
 }
 
 function settingsSection(session, inRoom) {
-  const blocks = [{ kind: "input", label: T.yourName, field: "name", placeholder: T.namePlaceholder, act: "saveName", button: T.save, value: session.name, maxLength: 16 }];
+  const saved = savedLanguage();
+  const blocks = [
+    { kind: "input", label: T.yourName, field: "name", placeholder: T.namePlaceholder, act: "saveName", button: T.save, value: session.name, maxLength: 16 },
+    { kind: "label", text: T.language },
+    { kind: "chips", chips: [["", T.languageAuto], ...LANGUAGES].map(([code, label]) => ({ act: "lang", arg: code, label, on: saved === code })) },
+  ];
   if (inRoom) {
     const items = [
       [T.relay, T.relayState[session.socket] ?? T.relayState.idle, session.socket === "open" ? "" : "error"],

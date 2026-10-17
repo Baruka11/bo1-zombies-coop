@@ -1,4 +1,4 @@
-// BO1 Zombies Co-op 2.3.1 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
+// BO1 Zombies Co-op 2.4.0 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
 (() => {
   // relay/src/protocol.js
   var ROLES = Object.freeze(["host", "guest"]);
@@ -1255,7 +1255,22 @@
   }
 
   // src/ui/strings.js
-  var LANG = /^pt\b/i.test(navigator.language ?? "") ? "pt" : "en";
+  var LANGUAGES = [["en", "English"], ["fr", "Français"], ["pt", "Português"]];
+  var CODES = LANGUAGES.map(([code]) => code);
+  function browserLanguage() {
+    const wanted = String(globalThis.navigator?.language ?? "").slice(0, 2).toLowerCase();
+    return CODES.includes(wanted) ? wanted : "en";
+  }
+  var savedLanguage = () => {
+    const saved = readSetting("lang", "");
+    return CODES.includes(saved) ? saved : "";
+  };
+  var LANG = savedLanguage() || browserLanguage();
+  function setLanguage(code) {
+    const saved = CODES.includes(code) ? code : "";
+    saveSetting("lang", saved);
+    LANG = saved || browserLanguage();
+  }
   var STRINGS = {
     en: {
       tagline: "up to 4 players",
@@ -1384,7 +1399,11 @@
       directNote: "A direct link cuts the delay, but the other players in the room can then see your IP address. Turn it off to stay behind the relay.",
       routeSome: (n, total) => `${n} of ${total} direct`,
       copyReport: "Copy diagnostic report",
-      reportNote: "For bug reports: version, routes, counters, pause timings and recent events. No IP address, name or room code."
+      reportNote: "For bug reports: version, routes, counters, pause timings and recent events. No IP address, name or room code.",
+      language: "Language",
+      languageAuto: "Auto",
+      minimise: "Minimise",
+      expand: "Expand"
     },
     pt: {
       tagline: "até 4 jogadores",
@@ -1513,10 +1532,147 @@
       directNote: "A conexão direta diminui o atraso, mas os outros jogadores da sala passam a ver o seu endereço IP. Desligue para ficar atrás do relay.",
       routeSome: (n, total) => `${n} de ${total} direta`,
       copyReport: "Copiar relatório de diagnóstico",
-      reportNote: "Para relatar problemas: versão, rotas, contadores, tempos de pausa e eventos recentes. Sem endereço IP, nome ou código da sala."
+      reportNote: "Para relatar problemas: versão, rotas, contadores, tempos de pausa e eventos recentes. Sem endereço IP, nome ou código da sala.",
+      language: "Idioma",
+      languageAuto: "Auto",
+      minimise: "Minimizar",
+      expand: "Expandir"
+    },
+    fr: {
+      tagline: "jusqu'à 4 joueurs",
+      chip: { solo: "Solo", hosting: "Hébergement", joining: "Connexion", lobby: "Lobby", ingame: "En jeu", paused: "En pause", offline: "Hors ligne", error: "Erreur", ended: "Déconnecté" },
+      intro: "Joue aux zombies avec jusqu'à 3 amis. Un joueur héberge, les autres rejoignent avec le lien d'invitation. Tout le monde a besoin de cette extension.",
+      host: "Héberger une partie",
+      joinLabel: "Rejoindre un ami",
+      joinPlaceholder: "Code de la salle ou lien d'invitation",
+      join: "Rejoindre",
+      room: "Salle",
+      inviteAside: (n) => `${n} place${n === 1 ? " libre" : "s libres"}`,
+      copy: "Copier le lien",
+      copyCode: "Copier le code",
+      copied: "Copié !",
+      players: "Lobby",
+      playersAside: (n, max) => `${n}/${max} connectés`,
+      freeHint: "Envoie le lien à quelqu'un",
+      player: (n) => `Joueur ${n}`,
+      you: "toi",
+      hostTag: "hôte",
+      st: {
+        free: "Place libre",
+        left: "Parti",
+        reconnecting: "Reconnexion…",
+        disconnected: "Déconnecté · peut revenir",
+        ingame: "En jeu",
+        ready: "Prêt",
+        joining: "Connexion…",
+        turn: "Prochain",
+        loading: "Chargement de la carte…",
+        picking: "Choisit une carte",
+        lobby: "Dans le lobby",
+        opening: "Ouverture de la salle…",
+        away: "Pas dans la salle"
+      },
+      map: "Carte",
+      noMap: "Pas encore choisie",
+      mapSubHost: "Tout le monde te suit sur cette carte",
+      mapSubGuest: "Choisie par l'hôte",
+      hell: "Hell mode",
+      stepsGuest: ["Salle", "Carte", "Charger", "Entrer", "Jouer"],
+      stepsHost: ["Carte", "Charger", "Lobby", "Jouer"],
+      pickMap: "Choisis une carte dans le menu du jeu. Tout le monde te suit.",
+      gate: "Des joueurs arrivent. Ton départ les attend, pour que tout le monde apparaisse ensemble.",
+      startNow: "Démarrer maintenant",
+      allIn: "Tout le monde est là. Clique dans le jeu pour démarrer.",
+      latecomers: "Les joueurs qui arrivent après le départ regardent jusqu'à la manche suivante (la règle de BO1 pour les retardataires).",
+      pausedYou: "En pause. Tout le monde est en pause aussi.",
+      pausedBy: "Mis en pause par un autre joueur.",
+      waitingHost: "En attente de l'hôte…",
+      hostPicking: "En attente du choix de la carte par l'hôte…",
+      opening: (m) => `Ouverture de ${m}…`,
+      pressKey: "Appuie sur une touche dans la page pour charger la carte.",
+      loadingMap: "Chargement de la carte…",
+      hostLoading: "En attente de la fin du chargement de l'hôte…",
+      nextInLine: "Un autre joueur se connecte. C'est toi ensuite.",
+      connecting: "Connexion à l'hôte…",
+      joiningGame: "Entrée dans la partie de l'hôte…",
+      waitingStart: "Tu es dedans. En attente du départ de l'hôte.",
+      clickToPlay: "Tu es dedans. Clique dans le jeu pour jouer.",
+      lateJoin: "L'hôte avait déjà démarré : tu regardes jusqu'à la manche suivante, puis tu apparais.",
+      ended: "Déconnecté de l'hôte. Tu peux revenir tant que l'hôte continue de jouer.",
+      failed: "Impossible de rejoindre. Réessaie.",
+      rejoin: "Revenir",
+      goToHost: "Aller vers l'hôte",
+      leave: "Quitter le co-op",
+      otherRelay: (h) => `Cette invitation utilise un autre relais (${h}). Passe dessus pour rejoindre.`,
+      useRelay: "Utiliser ce relais",
+      settings: "Réglages",
+      yourName: "Ton nom",
+      namePlaceholder: "Affiché dans le lobby",
+      save: "Enregistrer",
+      connection: "Connexion",
+      relay: "Relais",
+      relayState: { open: "Connecté", connecting: "Connexion…", closed: "Reconnexion…", idle: "Démarrage…" },
+      ping: "Ping",
+      dropped: "Paquets perdus",
+      relayDefault: "Relais par défaut",
+      relayCustom: (h) => `Personnalisé (${h})`,
+      relayNote: "Offre gratuite de Cloudflare : quelques heures de jeu par jour, partagées entre tous ceux qui utilisent ce relais. Pour un groupe qui joue souvent, crée le tien (5 minutes, gratuit).",
+      changeRelay: "Changer de relais",
+      useDefault: "Utiliser le relais par défaut",
+      cancel: "Annuler",
+      relayEditNote: "Tout le monde doit utiliser le même relais. Tes liens d'invitation le contiennent.",
+      relayPlaceholder: "https://ton-relais.workers.dev",
+      usage: (p, t) => `Aujourd'hui : ${p} % du quota gratuit utilisé · revient à ${t}`,
+      usedUp: (t) => `Le quota d'aujourd'hui est épuisé · revient à ${t}`,
+      controller: "Manette",
+      ctrl: { off: "Désactivée", unavailable: "Indisponible", press: "Appuie sur un bouton de la manette", later: (n) => `${n} · fonctionne en jeu`, active: (n, a, max) => `${n} · visée ${a}/${max}` },
+      aimDown: "Visée −",
+      aimUp: "Visée +",
+      turnOff: "Désactiver",
+      turnOn: "Activer",
+      credits: "Jeu : vel.gg par MisaDev4 · Co-op : BO1 Zombies Co-op",
+      notRoomCode: "Ce n'est pas un code de salle. Colle le lien d'invitation ou le code de 16 lettres.",
+      notRelay: "Ce n'est pas une adresse de relais. Elle ressemble à https://quelquechose.workers.dev",
+      controllerReload: "Recharge la page pour appliquer le réglage de la manette.",
+      engineUpdated: "vel.gg a mis à jour son moteur de jeu et cette version de l'extension ne le connaît pas encore : le co-op et la manette sont désactivés.",
+      enginePatchFailed: (m) => `Impossible de préparer le moteur (${m}) : le co-op et la manette sont désactivés.`,
+      replaced: "Cette salle a été ouverte dans un autre onglet ou une autre fenêtre.",
+      full: (n) => `Cette partie est pleine (${n} joueurs).`,
+      workerFailed: (m) => `Le processus du co-op a échoué : ${m}`,
+      unexpectedMemory: "Mémoire du moteur inattendue : le co-op est désactivé.",
+      hostNoAnswer: "L'hôte n'a pas répondu. Vérifie que sa page de jeu est ouverte, puis recharge.",
+      versionMismatch: "Toi et l'hôte avez des versions différentes du jeu. Rechargez les deux pages.",
+      hostPlaying: (m) => `L'hôte joue sur ${m}. Recharge cette page.`,
+      connectFailed: "Impossible de lancer la connexion à l'hôte. Rechargez les deux pages.",
+      notLetIn: "L'hôte ne nous a pas laissés entrer. Rechargez les deux pages et réessayez.",
+      hostLeft: "L'hôte a quitté la partie.",
+      updateAvailable: (v) => `La version ${v} est sortie. La mise à jour prend environ une minute.`,
+      updateHow: "Comment mettre à jour",
+      relayOverQuota: (t) => `Ce relais a épuisé le quota gratuit d'aujourd'hui${t ? ` (il revient à ${t})` : ""}. Avec ton propre relais, gratuit et prêt en 5 minutes, ton groupe joue tout de suite.`,
+      relayGuide: "Créer mon relais",
+      relayPitch: "Le co-op passe par un relais. Le relais partagé est gratuit mais petit : quelques heures de jeu par jour pour tout le monde ensemble, et il s'épuise quand beaucoup de monde joue. Ton propre relais est gratuit aussi, prend 5 minutes à créer et n'est que pour ton groupe.",
+      relayPitchHost: "Tu es sur le relais partagé, qui peut s'épuiser les jours d'affluence. Avec le tien (gratuit, 5 minutes), ton groupe n'attend jamais.",
+      relayHaveOne: "J'en ai déjà un",
+      hostTaken: "Quelqu'un d'autre tient la place d'hôte de cette salle. Si c'était toi, ferme l'autre onglet et réessaie dans quelques minutes.",
+      route: "Route",
+      routeDirect: "Directe",
+      routeRelay: "Relais",
+      routeTrying: "Essai d'une connexion directe…",
+      routeOff: "Relais seulement (direct désactivé)",
+      routeUnsupported: "Relais seulement (non pris en charge ici)",
+      directOn: "Autoriser les connexions directes",
+      directOff: "Relais seulement",
+      directNote: "Une connexion directe réduit le délai, mais les autres joueurs de la salle voient alors ton adresse IP. Désactive-la pour rester derrière le relais.",
+      routeSome: (n, total) => `${n} sur ${total} en direct`,
+      copyReport: "Copier le rapport de diagnostic",
+      reportNote: "Pour signaler un problème : version, routes, compteurs, durée des pauses et derniers événements. Pas d'adresse IP, de nom ni de code de salle.",
+      language: "Langue",
+      languageAuto: "Auto",
+      minimise: "Réduire",
+      expand: "Agrandir"
     }
   };
-  var T = STRINGS[LANG];
+  var T = new Proxy({}, { get: (_, key) => STRINGS[LANG][key] ?? STRINGS.en[key] });
 
   // src/util/relay.js
   var DEFAULT_RELAY = "https://bo1z-coop-4p-relay.allanlotta.workers.dev";
@@ -1546,7 +1702,7 @@
   }
 
   // src/session/session.js
-  var VERSION = "2.3.1";
+  var VERSION = "2.4.0";
   var AIM_LEVELS = 10;
   function createSession(search = location.search) {
     const params = new URLSearchParams(search);
@@ -2815,6 +2971,7 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
       const focused = this.root.activeElement?.dataset?.field;
       const previous = new Map([...this.root.querySelectorAll("input[data-field]")].map((i) => [i.dataset.field, i.value]));
       this.view = key;
+      this.collapseButton.title = this.host.classList.contains("collapsed") ? T.expand : T.minimise;
       this.chip.className = `chip ${view2.chip?.tone ?? ""}`;
       this.chip.textContent = view2.chip?.text ?? "";
       this.tagline.textContent = view2.tagline ?? "";
@@ -3045,7 +3202,7 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
     }
   };
 
-  // src/fun/fun.js
+  // src/fun/text.js
   var TEXT = {
     en: {
       title: "Fun mode",
@@ -3078,7 +3235,9 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
       weaponGiven: (w) => `${w} given.`,
       reset: "Reset everything",
       notLoaded: "Start a map to use this.",
-      cheatsOff: "This map has cheats off: the commands won't work."
+      cheatsOff: "This map has cheats off: the commands won't work.",
+      you: "You",
+      playerN: (n) => `Player ${n}`
     },
     pt: {
       title: "Modo diversão",
@@ -3111,10 +3270,49 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
       weaponGiven: (w) => `${w} entregue.`,
       reset: "Resetar tudo",
       notLoaded: "Abra um mapa para usar.",
-      cheatsOff: "Este mapa está com cheats desligados: os comandos não vão funcionar."
+      cheatsOff: "Este mapa está com cheats desligados: os comandos não vão funcionar.",
+      you: "Você",
+      playerN: (n) => `Jogador ${n}`
+    },
+    fr: {
+      title: "Mode fun",
+      note: "Hôte seulement. Les changements valent pour tous ceux de ta partie.",
+      pause: "Astuce : appuie sur Échap en jeu pour ouvrir cette carte.",
+      flyHint: "Vol et Traverser passent à travers les murs : désactive-les en étant au sol, sinon tu tombes hors de la carte.",
+      players: "Joueurs",
+      all: "Tout le monde",
+      god: "Invincible",
+      demigod: "Ne meurt pas",
+      notarget: "Invisible",
+      noclip: "Traverser",
+      ufo: "Voler",
+      speed: "Vitesse",
+      money: "Points",
+      ammo: "Munitions",
+      infiniteClip: "Chargeur infini",
+      infiniteStock: "Réserve infinie",
+      refill: "Tout remplir",
+      zombies: "Zombies",
+      oneHit: "Meurent en un coup",
+      passive: "Ignorent les joueurs",
+      clear: "Nettoyer les zombies",
+      world: "Monde",
+      timescale: "Vitesse du jeu",
+      jump: "Hauteur de saut",
+      gravity: "Gravité",
+      weapons: "Armes (pour toi)",
+      weaponMissing: (w) => `${w} n'existe pas sur cette carte.`,
+      weaponGiven: (w) => `${w} donné.`,
+      reset: "Tout réinitialiser",
+      notLoaded: "Lance une carte pour l'utiliser.",
+      cheatsOff: "Cette carte a les cheats désactivés : les commandes ne marcheront pas.",
+      you: "Toi",
+      playerN: (n) => `Joueur ${n}`
     }
   };
-  var F = TEXT[LANG];
+
+  // src/fun/fun.js
+  var F = new Proxy({}, { get: (_, key) => (TEXT[LANG] ?? TEXT.en)[key] ?? TEXT.en[key] });
   var PLAYER_TOGGLES = ["god", "demigod", "notarget", "noclip", "ufo"];
   var SPEEDS = [0.5, 0.75, 1, 1.5, 2, 3];
   var TIMESCALES = [0.25, 0.5, 0.75, 1, 1.5, 2];
@@ -3169,10 +3367,10 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
   }
   var playerState = (fun, slot) => fun.players[slot] ??= { god: false, demigod: false, notarget: false, noclip: false, ufo: false, speed: 1 };
   function funPlayers(session) {
-    const players = [{ slot: 0, n: 1, name: session.name || (LANG === "pt" ? "Você" : "You") }];
+    const players = [{ slot: 0, n: 1, name: session.name || F.you }];
     if (session.mode === "host") {
       for (const g of session.guests.values()) {
-        if (g.present && g.slot?.state === SLOT.active) players.push({ slot: g.slot.slot, n: g.seat + 1, name: g.state?.name || `${LANG === "pt" ? "Jogador" : "Player"} ${g.seat + 1}` });
+        if (g.present && g.slot?.state === SLOT.active) players.push({ slot: g.slot.slot, n: g.seat + 1, name: g.state?.name || F.playerN(g.seat + 1) });
       }
     }
     return players;
@@ -3622,7 +3820,12 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
     return { kind: "map", glyph: name[0], name, tag: horde ? T.hell : null, sub };
   }
   function settingsSection(session, inRoom) {
-    const blocks = [{ kind: "input", label: T.yourName, field: "name", placeholder: T.namePlaceholder, act: "saveName", button: T.save, value: session.name, maxLength: 16 }];
+    const saved = savedLanguage();
+    const blocks = [
+      { kind: "input", label: T.yourName, field: "name", placeholder: T.namePlaceholder, act: "saveName", button: T.save, value: session.name, maxLength: 16 },
+      { kind: "label", text: T.language },
+      { kind: "chips", chips: [["", T.languageAuto], ...LANGUAGES].map(([code, label]) => ({ act: "lang", arg: code, label, on: saved === code })) }
+    ];
     if (inRoom) {
       const items = [
         [T.relay, T.relayState[session.socket] ?? T.relayState.idle, session.socket === "open" ? "" : "error"],
@@ -3726,7 +3929,7 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
   // src/main.js
   var TICK_MS = 50;
   var PAUSE_WATCH_MS = 8;
-  var LANG_QUERY = LANG === "pt" ? "?lang=pt#" : "#";
+  var langQuery = () => LANG === "pt" ? "?lang=pt#" : "#";
   var USAGE_REFRESH_MS = 6e5;
   if (!window.__bo1Coop) start();
   function start() {
@@ -3830,7 +4033,7 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
       startNow: () => session.startAlone = true,
       rejoin: () => location.reload(),
       openUpdate: () => window.open(session.update?.url, "_blank", "noopener"),
-      openRelayGuide: () => window.open(`${RELAY_GUIDE.replace("#", LANG_QUERY)}`, "_blank", "noopener"),
+      openRelayGuide: () => window.open(`${RELAY_GUIDE.replace("#", langQuery())}`, "_blank", "noopener"),
       goToHost: () => moveToHost(session, "button"),
       settings: () => session.showSettings = !session.showSettings,
       saveName: (text) => {
@@ -3844,6 +4047,8 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
         saveSetting("direct", session.directEnabled ? "" : "0");
         session.direct?.setEnabled(session.directEnabled);
       },
+      // The card's language: "" is automatic (the browser's). It applies at once, no reload.
+      lang: (code) => setLanguage(code),
       editRelay: () => session.editRelay = !session.editRelay,
       // From the over-quota notice: open settings straight at the relay field.
       editRelayNow: () => {

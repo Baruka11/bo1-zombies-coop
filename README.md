@@ -49,7 +49,7 @@ With controller support and a fun mode for the host (god mode, wonder weapons, i
 - **Fun mode** for the host: god mode, invisible, noclip, fly, speed and points per player; infinite ammo; one-hit or
   passive zombies; game speed, jump and gravity; wonder weapons. [More below](#fun-mode).
 - **PlayStation and Xbox controllers** with adjustable aim speed.
-- **English and Portuguese**, picked from your browser's language.
+- **English, French and Portuguese**: the card follows your browser's language, and Settings > Language changes it at once (no reload).
 - **Stable**: fixes the crash where one player pressing Escape or T (chat) took down the other players' games.
 
 <p align="center"><img src="docs/images/in-game.png" width="640" alt="Playing Kino der Toten in co-op, with the players indicator in the corner"><br><sub>In game, the card folds into a small indicator: one dot per player, and your ping</sub></p>
@@ -293,7 +293,7 @@ Com controle e um modo diversão para o host (imortal, armas especiais, muniçã
   munição infinita; zumbis de 1 tiro ou que ignoram vocês; velocidade do jogo, pulo e gravidade; armas especiais.
   [Detalhes abaixo](#modo-diversão).
 - **Controle de PlayStation e Xbox**, com ajuste de velocidade da mira.
-- **Em português** quando o navegador está em português.
+- **Em português, inglês ou francês**: o cartão segue o idioma do navegador, e Configurações > Idioma troca na hora (sem recarregar).
 - **Corrige o crash** em que um jogador apertando ESC ou T (chat) derrubava o jogo dos outros.
 
 ### Instalar (2 minutos, cada jogador)
@@ -389,7 +389,7 @@ Toten. Avec la manette et un mode fun pour l'hôte (invincible, armes spéciales
 > Ceci est un fork de [AllanLotta/bo1-zombies-coop](https://github.com/AllanLotta/bo1-zombies-coop), maintenu pour
 > fonctionner avec le moteur actuel de vel.gg (l'original a cessé de marcher avec lui). Ce qui est ajouté ici : le
 > nouveau moteur et l'adresse `/bsz/`, une pause plus rapide, des **connexions directes entre les joueurs** (WebRTC, avec
-> le relais en secours), avec un bouton « Relay only » pour cacher ton IP et une place d'hôte verrouillée, et un bouton
+> le relais en secours), avec un bouton « Relais seulement » pour cacher ton IP et une place d'hôte verrouillée, et un bouton
 > de **rapport de diagnostic**. Télécharge depuis les [Releases](https://github.com/Baruka11/bo1-zombies-coop/releases)
 > de ce dépôt : les images du guide d'installation restent justes pour les étapes, mais son bouton de téléchargement
 > mène à l'original. `v2.2.3` est la version stable, sans connexion directe.
@@ -398,7 +398,7 @@ Toten. Avec la manette et un mode fun pour l'hôte (invincible, armes spéciales
 > **Tu joues avec des amis ? [Crée ton propre relais](#relais-personnel-recommandé-pour-ton-groupe) d'abord.** Le co-op
 > passe par un relais. Le relais partagé est gratuit mais petit : quelques heures de jeu par jour pour **tout le monde**
 > ensemble, et quand il est épuisé le co-op s'arrête jusqu'à minuit UTC (1 h ou 2 h du matin en France). Ton propre
-> relais est gratuit aussi, prend 5 minutes et n'est que pour ton groupe. La carte Co-op a un bouton **Create my relay**
+> relais est gratuit aussi, prend 5 minutes et n'est que pour ton groupe. La carte Co-op a un bouton **Créer mon relais**
 > qui mène au [guide pas à pas](https://allanlotta.github.io/bo1-zombies-coop/#relay) (en anglais).
 
 <table>
@@ -408,7 +408,7 @@ Toten. Avec la manette et un mode fun pour l'hôte (invincible, armes spéciales
 </tr>
 </table>
 
-<sub>Les captures sont en anglais, comme l'extension quand ton navigateur n'est pas en portugais.</sub>
+<sub>Les captures de ce README sont en anglais ; la carte, elle, s'affiche en français.</sub>
 
 ### Ce que ça fait
 
@@ -421,6 +421,7 @@ Toten. Avec la manette et un mode fun pour l'hôte (invincible, armes spéciales
   infinies ; zombies morts en un coup ou qui vous ignorent ; vitesse du jeu, saut et gravité ; armes spéciales.
   [Détails plus bas](#mode-fun).
 - **Manettes PlayStation et Xbox**, avec réglage de la vitesse de visée.
+- **En français, en anglais ou en portugais** : la carte suit la langue de ton navigateur, et Réglages > Langue la change tout de suite (sans recharger).
 - **Connexion directe entre joueurs** quand elle est possible, avec le relais en secours.
 - **Corrige le crash** où un joueur appuyant sur Échap ou T (chat) faisait planter le jeu des autres.
 
@@ -447,19 +448,19 @@ remplace les fichiers du dossier par les nouveaux et recharge l'extension.
 
 ### Jouer
 
-**L'hôte :** clique sur **Host a game**, puis **Copy link**, et envoie le lien à tes amis. Choisis la carte (tout le monde
-suit). Attends sur l'écran « click to start » que tous apparaissent **Ready** dans le lobby, puis clique dans le jeu.
+**L'hôte :** clique sur **Héberger une partie**, puis **Copier le lien**, et envoie le lien à tes amis. Choisis la carte (tout le monde
+suit). Attends sur l'écran « click to start » que tous apparaissent **Prêt** dans le lobby, puis clique dans le jeu.
 
 **Les amis :** ouvrez le lien et appuyez sur une touche quand la page le demande, pour charger la carte. Quand la carte
-dit **You are in**, cliquez dans le jeu.
+dit **Tu es dedans**, cliquez dans le jeu.
 
-Astuces : mets ton nom dans **Settings**. Si quelqu'un se déconnecte, il clique sur **Rejoin** (celui qui arrive après
-le début regarde jusqu'à la manche suivante, comme dans le jeu d'origine). Apparu trop loin des autres ? **Go to the host**.
+Astuces : mets ton nom dans **Réglages**. Si quelqu'un se déconnecte, il clique sur **Revenir** (celui qui arrive après
+le début regarde jusqu'à la manche suivante, comme dans le jeu d'origine). Apparu trop loin des autres ? **Aller vers l'hôte**.
 
 ### Mode fun
 
 Pour l'hôte, ou quand tu joues seul. Il agit sur ton propre serveur de jeu, donc il vaut pour tous ceux de ta partie, et
-tes amis n'ont besoin de rien de plus. Appuie sur **Échap** en jeu pour ouvrir la carte Co-op, puis **Fun mode**.
+tes amis n'ont besoin de rien de plus. Appuie sur **Échap** en jeu pour ouvrir la carte Co-op, puis **Mode fun**.
 
 - **Par joueur, ou tous à la fois :** invincible, ne peut pas mourir, invisible pour les zombies, traverser les murs, voler,
   vitesse de 0,5× à 3×, points (+5k, +50k, maximum).
@@ -469,21 +470,21 @@ tes amis n'ont besoin de rien de plus. Appuie sur **Échap** en jeu pour ouvrir 
 - **Armes pour l'hôte :** Ray Gun, Thundergun, Wunderwaffe, Winter's Howl, Wave Gun, Scavenger, Crossbow, Ballistic
   Knife, Monkey Bomb, Gersh Device et d'autres, versions améliorées comprises. Seules celles qui existent sur la carte
   actuelle fonctionnent ; la carte te prévient quand l'une n'existe pas.
-- **Reset everything** remet le jeu à la normale.
+- **Tout réinitialiser** remet le jeu à la normale.
 
-Désactive Vol et Traverser les murs en étant au sol, sinon tu tombes hors de la carte.
+Désactive Voler et Traverser en étant au sol, sinon tu tombes hors de la carte.
 
 ### Connexion directe et vie privée
 
 Une connexion directe réduit le délai (pas de détour par le relais) et soulage le quota du relais. En échange,
 **les joueurs de la salle peuvent voir l'adresse IP des autres**, que le relais cache normalement.
 
-- **Settings > « Relay only »** désactive les connexions directes pour toi : tu restes derrière le relais. La carte
+- **Réglages > « Relais seulement »** désactive les connexions directes pour toi : tu restes derrière le relais. La carte
   montre la route de chaque joueur (Direct ou Relay).
 - Seules les personnes qui ont ton lien d'invitation peuvent rejoindre, et une salle compte quatre joueurs.
 - La **place d'hôte est verrouillée** par un jeton secret sur les relais à jour (ceux déployés avec le dossier `relay/` de
   ce dépôt) : quelqu'un qui ne connaît que le code de la salle ne peut plus prendre la partie.
-- **Settings > « Copy diagnostic report »** copie un rapport pour signaler un problème (version, routes, compteurs,
+- **Réglages > « Copier le rapport de diagnostic »** copie un rapport pour signaler un problème (version, routes, compteurs,
   durée des pauses, derniers événements). Il ne contient ni IP, ni nom, ni code de salle.
 - Ce qui ne change pas : celui qui héberge le relais voit la mise en relation et les paquets passant par lui, et le moteur
   de chaque joueur analyse les paquets des autres. Joue avec des gens que tu connais, et utilise ton propre relais.
@@ -492,13 +493,13 @@ Une connexion directe réduit le délai (pas de détour par le relais) et soulag
 
 | Problème | Quoi faire |
 | --- | --- |
-| « vel.gg updated its game engine… » | Un nouveau moteur est sorti ; le co-op se coupe jusqu'à la mise à jour de l'extension. Regarde s'il y a une nouvelle version. |
-| « Different versions of the game » | Les deux rechargent la page. |
-| « This game is full » | La salle contient 4 joueurs. |
-| Bloqué sur « Next in line » | Les joueurs entrent un par un ; ça avance en moins d'une minute. Sinon, recharge. |
+| « vel.gg a mis à jour son moteur de jeu… » | Un nouveau moteur est sorti ; le co-op se coupe jusqu'à la mise à jour de l'extension. Regarde s'il y a une nouvelle version. |
+| « Toi et l'hôte avez des versions différentes du jeu » | Les deux rechargent la page. |
+| « Cette partie est pleine » | La salle contient 4 joueurs. |
+| Bloqué sur « Un autre joueur se connecte » | Les joueurs entrent un par un ; ça avance en moins d'une minute. Sinon, recharge. |
 | vel.gg a maintenant son propre multijoueur | Quand tu héberges ou rejoins par la carte Co-op, l'extension laisse vel.gg en solo et fait le co-op elle-même (lobby, manette, pause synchronisée, mode fun). Pour utiliser le multijoueur de vel.gg, n'héberge ni ne rejoins par la carte. |
-| « This relay used up today's free allowance » | Le relais partagé est épuisé pour aujourd'hui (il revient à minuit UTC). [Crée ton relais](#relais-personnel-recommandé-pour-ton-groupe) : 5 minutes, gratuit. |
-| Saccades ou téléportations | Ouvre Settings > « Copy diagnostic report » juste après et envoie le texte à celui qui maintient l'extension. Essaie aussi « Relay only » pour comparer. |
+| « Ce relais a épuisé le quota gratuit d'aujourd'hui » | Le relais partagé est épuisé pour aujourd'hui (il revient à minuit UTC). [Crée ton relais](#relais-personnel-recommandé-pour-ton-groupe) : 5 minutes, gratuit. |
+| Saccades ou téléportations | Ouvre Réglages > « Copier le rapport de diagnostic » juste après et envoie le texte à celui qui maintient l'extension. Essaie aussi « Relais seulement » pour comparer. |
 
 ### Relais personnel (recommandé pour ton groupe)
 
@@ -514,7 +515,7 @@ quota n'est que pour ton groupe.
    connecte-toi, autorise la création d'une copie du relais dans ton GitHub et clique sur **Deploy**. Si Cloudflare
    demande un sous-domaine `workers.dev`, n'importe quel nom convient.
 3. Copie l'adresse de ton relais quand il est prêt : `https://bo1-zombies-coop-relay.<ton-nom>.workers.dev`.
-4. Dans la carte Co-op : **Settings → Change relay**, colle l'adresse et clique sur **Save**.
+4. Dans la carte Co-op : **Réglages → Changer de relais**, colle l'adresse et clique sur **Enregistrer**.
 
-Tes liens d'invitation portent déjà le relais : tes amis cliquent juste sur **Use this relay** sur leur carte.
+Tes liens d'invitation portent déjà le relais : tes amis cliquent juste sur **Utiliser ce relais** sur leur carte.
 Par le terminal : voir les commandes dans la section en anglais, plus haut.

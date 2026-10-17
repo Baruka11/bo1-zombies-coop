@@ -6,75 +6,10 @@ import { SLOT } from "../engine/builds.js";
 import { MAP_SLUGS, currentZone, screen as pageScreen } from "../game/page.js";
 import { LANG } from "../ui/strings.js";
 
-const TEXT = {
-  en: {
-    title: "Fun mode",
-    note: "Host only. Changes apply to everyone in your game.",
-    pause: "Tip: press Esc in game to open this card.",
-    flyHint: "Fly and Noclip go through walls: switch them off standing on the floor, or you fall out of the map.",
-    players: "Players",
-    all: "Everyone",
-    god: "God",
-    demigod: "Can't die",
-    notarget: "Invisible",
-    noclip: "Noclip",
-    ufo: "Fly",
-    speed: "Speed",
-    money: "Points",
-    ammo: "Ammo",
-    infiniteClip: "Infinite clip",
-    infiniteStock: "Infinite reserve",
-    refill: "Refill everyone",
-    zombies: "Zombies",
-    oneHit: "Die in one hit",
-    passive: "Ignore players",
-    clear: "Clear zombies",
-    world: "World",
-    timescale: "Game speed",
-    jump: "Jump height",
-    gravity: "Gravity",
-    weapons: "Weapons (for you)",
-    weaponMissing: (w) => `${w} is not on this map.`,
-    weaponGiven: (w) => `${w} given.`,
-    reset: "Reset everything",
-    notLoaded: "Start a map to use this.",
-    cheatsOff: "This map has cheats off: the commands won't work.",
-  },
-  pt: {
-    title: "Modo diversão",
-    note: "Só o host. Vale para todo mundo na sua partida.",
-    pause: "Dica: aperte Esc no jogo para abrir este cartão.",
-    flyHint: "Voa e Atravessa passam por paredes: desligue com os p\u00e9s no ch\u00e3o, sen\u00e3o o jogador cai para fora do mapa.",
-    players: "Jogadores",
-    all: "Todos",
-    god: "Imortal",
-    demigod: "Não morre",
-    notarget: "Invisível",
-    noclip: "Atravessa",
-    ufo: "Voa",
-    speed: "Velocidade",
-    money: "Pontos",
-    ammo: "Munição",
-    infiniteClip: "Pente infinito",
-    infiniteStock: "Reserva infinita",
-    refill: "Encher a de todos",
-    zombies: "Zumbis",
-    oneHit: "Morrem com 1 tiro",
-    passive: "Ignoram vocês",
-    clear: "Limpar zumbis",
-    world: "Mundo",
-    timescale: "Velocidade do jogo",
-    jump: "Altura do pulo",
-    gravity: "Gravidade",
-    weapons: "Armas (para você)",
-    weaponMissing: (w) => `${w} não existe neste mapa.`,
-    weaponGiven: (w) => `${w} entregue.`,
-    reset: "Resetar tudo",
-    notLoaded: "Abra um mapa para usar.",
-    cheatsOff: "Este mapa está com cheats desligados: os comandos não vão funcionar.",
-  },
-};
-const F = TEXT[LANG];
+import { TEXT } from "./text.js";
+
+// The current language's texts, looked up each time so a language change applies at once.
+const F = new Proxy({}, { get: (_, key) => (TEXT[LANG] ?? TEXT.en)[key] ?? TEXT.en[key] });
 
 const PLAYER_TOGGLES = ["god", "demigod", "notarget", "noclip", "ufo"];
 const SPEEDS = [0.5, 0.75, 1, 1.5, 2, 3];
@@ -134,10 +69,10 @@ const playerState = (fun, slot) => (fun.players[slot] ??= { god: false, demigod:
 
 /** Who is in the game right now: [{ slot, n, name }]. Slot 0 is always the host (or the solo player). */
 export function funPlayers(session) {
-  const players = [{ slot: 0, n: 1, name: session.name || (LANG === "pt" ? "Você" : "You") }];
+  const players = [{ slot: 0, n: 1, name: session.name || F.you }];
   if (session.mode === "host") {
     for (const g of session.guests.values()) {
-      if (g.present && g.slot?.state === SLOT.active) players.push({ slot: g.slot.slot, n: g.seat + 1, name: g.state?.name || `${LANG === "pt" ? "Jogador" : "Player"} ${g.seat + 1}` });
+      if (g.present && g.slot?.state === SLOT.active) players.push({ slot: g.slot.slot, n: g.seat + 1, name: g.state?.name || F.playerN(g.seat + 1) });
     }
   }
   return players;
