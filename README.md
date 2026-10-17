@@ -213,6 +213,17 @@ price is that **the players in the room can see each other's IP address**, which
 - What does not change: whoever runs the relay can see the handshake and the packets on the relay path, and every
   player's engine still parses the other players' packets. Play with people you know, and use your own relay.
 
+### Is it safe to install?
+
+You do not have to take anyone's word for it, the extension is small and readable (`src/`, built into one file):
+
+- **Permissions:** none. The manifest has no `permissions` and no background page: it is one script that runs only on `https://vel.gg/*`. It cannot see your other tabs, history, bookmarks, passwords or downloads.
+- **Who it talks to**, and nobody else: the relay (the default one, or yours), `api.github.com` (to check for updates, from the original repository), and the STUN servers of Google and Cloudflare (to set up direct links). During a game, the other players' browsers.
+- **What it does not do:** no `eval`, no remote code, no cookies, no analytics, no third-party libraries inside `coop.js`. It stores only its own settings (name, language, relay) in the page's local storage.
+- **What it does change:** it patches the game engine of vel.gg while it loads (checked by SHA-256 and by function name first, so an engine it does not know is left alone), and hooks the page to add the co-op card. That is how co-op works, and the reason it only runs on vel.gg.
+- **Check it yourself:** `npm install && npm run build` rebuilds `extension/coop.js` from the sources; it comes out the same, byte for byte (line endings aside), as the one in the repository and in the release zip.
+- **What it cannot protect you from:** whoever runs the relay sees the packets that pass through it, and the players you play with see your IP address if direct links are on (see above). Use your own relay and play with people you know.
+
 ## Development
 
 ```
@@ -488,6 +499,17 @@ Une connexion directe réduit le délai (pas de détour par le relais) et soulag
   durée des pauses, derniers événements). Il ne contient ni IP, ni nom, ni code de salle.
 - Ce qui ne change pas : celui qui héberge le relais voit la mise en relation et les paquets passant par lui, et le moteur
   de chaque joueur analyse les paquets des autres. Joue avec des gens que tu connais, et utilise ton propre relais.
+
+### Est-ce sûr à installer ?
+
+Pas besoin de nous croire sur parole : l'extension est petite et lisible (`src/`, compilée en un seul fichier).
+
+- **Permissions : aucune.** Le manifeste n'a ni `permissions` ni page d'arrière-plan : c'est un seul script qui ne tourne que sur `https://vel.gg/*`. Il ne voit pas tes autres onglets, ton historique, tes favoris, tes mots de passe ni tes téléchargements.
+- **Avec qui elle communique**, et personne d'autre : le relais (celui par défaut, ou le tien), `api.github.com` (pour chercher les mises à jour, dans le dépôt d'origine), et les serveurs STUN de Google et Cloudflare (pour les connexions directes). Pendant une partie, les navigateurs des autres joueurs.
+- **Ce qu'elle ne fait pas :** pas de `eval`, pas de code distant, pas de cookies, pas de statistiques, aucune bibliothèque tierce dans `coop.js`. Elle ne garde que ses propres réglages (nom, langue, relais) dans le stockage local de la page.
+- **Ce qu'elle modifie :** elle patche le moteur de jeu de vel.gg pendant son chargement (après avoir vérifié son SHA-256 et ses fonctions : un moteur inconnu est laissé tel quel) et s'accroche à la page pour ajouter la carte du co-op. C'est ainsi que le co-op fonctionne, et la raison pour laquelle elle ne tourne que sur vel.gg.
+- **Vérifie toi-même :** `npm install && npm run build` reconstruit `extension/coop.js` à partir des sources ; le résultat est identique, octet pour octet (aux fins de ligne près), à celui du dépôt et du zip de la release.
+- **Ce dont elle ne peut pas te protéger :** celui qui héberge le relais voit les paquets qui y passent, et les joueurs avec qui tu joues voient ton adresse IP si les connexions directes sont activées (voir plus haut). Utilise ton propre relais et joue avec des gens que tu connais.
 
 ### Problèmes courants
 

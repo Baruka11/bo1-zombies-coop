@@ -1,4 +1,4 @@
-// BO1 Zombies Co-op 2.4.1 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
+// BO1 Zombies Co-op 2.4.2 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
 (() => {
   // relay/src/protocol.js
   var ROLES = Object.freeze(["host", "guest"]);
@@ -1744,7 +1744,7 @@
   }
 
   // src/session/session.js
-  var VERSION = "2.4.1";
+  var VERSION = "2.4.2";
   var AIM_LEVELS = 10;
   function createSession(search = location.search) {
     const params = new URLSearchParams(search);
@@ -1979,6 +1979,7 @@
   function followHostMap(session) {
     const info = session.hostInfo;
     if (!info?.slug || session.engine) return;
+    if (!Object.values(MAP_SLUGS).includes(info.slug)) return;
     const guns = info.guns === "cs" ? "cs" : "classic";
     if (currentSlug() === info.slug && currentHorde() === Boolean(info.horde) && currentGuns() === guns) return;
     session.phase = "following";

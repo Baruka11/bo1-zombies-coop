@@ -2,7 +2,7 @@
 // server instead. The pump worker forwards the client's packets to the host and writes the host's replies back.
 import { CONNECTION, SLOT } from "../engine/builds.js";
 import { EngineMemory, NORMAL_SPEED } from "../engine/memory.js";
-import { applyGameSettings, BASE, currentGuns, currentHorde, currentSlug, devmapZone, go, insertBeforeDevmap, latestView, MAP_NAMES, screen as pageScreen } from "../game/page.js";
+import { applyGameSettings, BASE, currentGuns, currentHorde, currentSlug, devmapZone, go, insertBeforeDevmap, latestView, MAP_NAMES, MAP_SLUGS, screen as pageScreen } from "../game/page.js";
 import { send } from "../net/pump.js";
 import { notePause } from "../util/diagnostics.js";
 import { introduce } from "./messages.js";
@@ -24,6 +24,8 @@ export const guestQport = (seat) => 1000 + 10000 * (seat - 1) + 1 + Math.floor(M
 export function followHostMap(session) {
   const info = session.hostInfo;
   if (!info?.slug || session.engine) return;
+  // The slug comes from the host and ends up in an address: only the known maps are followed.
+  if (!Object.values(MAP_SLUGS).includes(info.slug)) return;
   const guns = info.guns === "cs" ? "cs" : "classic";
   if (currentSlug() === info.slug && currentHorde() === Boolean(info.horde) && currentGuns() === guns) return;
   session.phase = "following";
