@@ -5,21 +5,30 @@
 # BO1 Zombies Co-op
 
 **Play Black Ops 1 Zombies in your browser with up to 4 friends, online.**<br>
-A free Chrome extension for [vel.gg/bo1z](https://vel.gg/bo1z/): host a game, send a link, play Kino der Toten together.<br>
+A free Chrome extension for [vel.gg/bsz](https://vel.gg/bsz/): host a game, send a link, play Kino der Toten together.<br>
 With controller support and a fun mode for the host (god mode, wonder weapons, infinite ammo, flying and more).
 
-[![Latest release](https://img.shields.io/github/v/release/AllanLotta/bo1-zombies-coop?label=download&color=e2552f)](https://github.com/AllanLotta/bo1-zombies-coop/releases/latest)
+[![Latest release](https://img.shields.io/github/v/release/Baruka11/bo1-zombies-coop?include_prereleases&label=download&color=e2552f)](https://github.com/Baruka11/bo1-zombies-coop/releases)
 ![Players](https://img.shields.io/badge/players-up%20to%204-63d471)
 ![Maps](https://img.shields.io/badge/maps-all%2010-5aa8ff)
 ![Browser](https://img.shields.io/badge/browser-Chrome-f4c542)
 
-### [⬇ Download the extension](https://github.com/AllanLotta/bo1-zombies-coop/releases/latest/download/bo1-zombies-coop.zip) · [Install guide with pictures](https://allanlotta.github.io/bo1-zombies-coop/)
+### [⬇ Download the extension](https://github.com/Baruka11/bo1-zombies-coop/releases) · [Install guide with pictures](https://allanlotta.github.io/bo1-zombies-coop/)
 
 **English** · [Português](#português)
 
 <img src="docs/images/four-players.jpg" width="860" alt="Four players in the same lobby, one browser each: the host and three friends, with names, status and ping">
 
 </div>
+
+> [!NOTE]
+> This is a fork of [AllanLotta/bo1-zombies-coop](https://github.com/AllanLotta/bo1-zombies-coop), kept working with
+> vel.gg's current engine (the original stopped working with it). Added here: the new engine and the
+> `/bsz/` address, a faster pause, **direct links between players** (WebRTC, with the relay as fallback) with a
+> "Relay only" switch to hide your IP address and a locked host seat, and a **diagnostic report** button.
+> Download from this repository's [Releases](https://github.com/Baruka11/bo1-zombies-coop/releases): the install guide's
+> pictures below are still right for the steps, but its download button goes to the original. `v2.2.3` is the stable
+> version without direct links.
 
 > [!IMPORTANT]
 > **Playing with friends? [Create your own relay](#run-your-own-relay-recommended-for-your-group) first.** Co-op runs
@@ -57,7 +66,7 @@ With controller support and a fun mode for the host (god mode, wonder weapons, i
 
 Step-by-step page with pictures, in English and Portuguese: **[allanlotta.github.io/bo1-zombies-coop](https://allanlotta.github.io/bo1-zombies-coop/)**
 
-1. **[Download the extension](https://github.com/AllanLotta/bo1-zombies-coop/releases/latest/download/bo1-zombies-coop.zip)** and unzip it.
+1. **[Download the extension](https://github.com/Baruka11/bo1-zombies-coop/releases)** and unzip it.
    You get a folder called `bo1-zombies-coop`: move it somewhere it can stay (Chrome keeps using it).
 2. Paste `chrome://extensions` into Chrome's address bar and switch on **Developer mode**, top right:
 
@@ -65,12 +74,12 @@ Step-by-step page with pictures, in English and Portuguese: **[allanlotta.github
 3. Click **Load unpacked** and pick the `bo1-zombies-coop` folder (the one with `manifest.json` inside):
 
    <img src="docs/images/install/en-2.png" width="640" alt="Load unpacked button">
-4. Done. Open [vel.gg/bo1z](https://vel.gg/bo1z/): the **Co-op** card appears in the top right corner.
+4. Done. Open [vel.gg/bsz](https://vel.gg/bsz/): the **Co-op** card appears in the top right corner.
 
    <img src="docs/images/install/en-3.png" width="640" alt="The installed extension">
 
 Chrome may show a popup about developer-mode extensions when it starts: that's normal, just close it.
-When a new version is out, the Co-op card tells you and links to the [update steps](https://allanlotta.github.io/bo1-zombies-coop/#update).
+The Co-op card does not announce this fork's updates: check the [Releases](https://github.com/Baruka11/bo1-zombies-coop/releases) page, then replace the folder's files with the new ones and reload the extension.
 
 ## Play
 
@@ -141,7 +150,7 @@ Your own relay is free too, takes about 5 minutes, and its allowance is only for
 **With the button (no terminal):**
 
 1. Create a free account at [dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up) and confirm your email.
-2. Click [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AllanLotta/bo1-zombies-coop/tree/main/relay), sign in, allow it to
+2. Click [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Baruka11/bo1-zombies-coop/tree/main/relay), sign in, allow it to
    create a copy of the relay in your GitHub account, and click **Deploy**. If Cloudflare asks you to pick a
    `workers.dev` subdomain, any name works.
 3. Copy your relay's address when it is ready: `https://bo1-zombies-coop-relay.<your-name>.workers.dev`.
@@ -152,7 +161,7 @@ Your invite links carry your relay, so friends switch to it with one click (**Us
 **With the terminal** (needs [Node.js](https://nodejs.org) 22+):
 
 ```sh
-git clone https://github.com/AllanLotta/bo1-zombies-coop
+git clone https://github.com/Baruka11/bo1-zombies-coop
 cd bo1-zombies-coop/relay
 npm install
 npx wrangler login     # opens the browser: click Allow
@@ -238,7 +247,7 @@ Each end-to-end player is a full game engine using several GB of memory: on a 16
 
 ## Credits
 
-The game in the browser is [vel.gg](https://vel.gg/bo1z/) by MisaDev4, built on the decompiled engine. This project
+The game in the browser is [vel.gg](https://vel.gg/bsz/) by MisaDev4, built on the decompiled engine. This project
 started from invictus841's two-player co-op extension.
 
 Not affiliated with Activision or Treyarch. Call of Duty and Black Ops are trademarks of Activision Publishing.
@@ -248,8 +257,17 @@ Not affiliated with Activision or Treyarch. Call of Duty and Black Ops are trade
 ## Português
 
 **Jogue Black Ops 1 Zombies no navegador com até 4 amigos, online.** Extensão gratuita do Chrome para o
-[vel.gg/bo1z](https://vel.gg/bo1z/): um hospeda, manda o link, e todo mundo joga junto, inclusive no Kino der Toten.
+[vel.gg/bsz](https://vel.gg/bsz/): um hospeda, manda o link, e todo mundo joga junto, inclusive no Kino der Toten.
 Com controle e um modo diversão para o host (imortal, armas especiais, munição infinita, voar e mais).
+
+> [!NOTE]
+> Este é um fork de [AllanLotta/bo1-zombies-coop](https://github.com/AllanLotta/bo1-zombies-coop), mantido funcionando
+> com o motor atual do vel.gg (o original parou de funcionar com ele). O que tem aqui a mais: o motor novo
+> e o endereço `/bsz/`, pausa mais rápida, **conexão direta entre os jogadores** (WebRTC, com o relay como reserva), com
+> um botão "Só relay" para esconder o seu IP e o lugar do host trancado, e um botão de **relatório de diagnóstico**.
+> Baixe pelas [Releases](https://github.com/Baruka11/bo1-zombies-coop/releases) deste repositório: as imagens do passo
+> a passo abaixo continuam certas, mas o botão de download dele vai para o original. `v2.2.3` é a versão estável, sem
+> conexão direta.
 
 > [!IMPORTANT]
 > **Vai jogar com os amigos? [Crie o seu relay](#relay-próprio-recomendado-para-o-seu-grupo) antes.** O co-op passa
@@ -282,7 +300,7 @@ Com controle e um modo diversão para o host (imortal, armas especiais, muniçã
 
 Passo a passo com imagens: **[allanlotta.github.io/bo1-zombies-coop](https://allanlotta.github.io/bo1-zombies-coop/?lang=pt)**
 
-1. **[Baixe a extensão](https://github.com/AllanLotta/bo1-zombies-coop/releases/latest/download/bo1-zombies-coop.zip)** e descompacte.
+1. **[Baixe a extensão](https://github.com/Baruka11/bo1-zombies-coop/releases)** e descompacte.
    Aparece uma pasta `bo1-zombies-coop`: deixe ela num lugar fixo, como Documentos (o Chrome continua usando a pasta).
 2. Cole `chrome://extensions` na barra de endereços do Chrome e ligue o **Modo do desenvolvedor**, no canto superior direito:
 
@@ -290,12 +308,12 @@ Passo a passo com imagens: **[allanlotta.github.io/bo1-zombies-coop](https://all
 3. Clique em **Carregar sem compactação** e escolha a pasta `bo1-zombies-coop` (a que tem o `manifest.json` dentro):
 
    <img src="docs/images/install/pt-2.png" width="640" alt="Carregar sem compactação">
-4. Pronto. Abra o [vel.gg/bo1z](https://vel.gg/bo1z/): o cartão **Co-op** aparece no canto superior direito.
+4. Pronto. Abra o [vel.gg/bsz](https://vel.gg/bsz/): o cartão **Co-op** aparece no canto superior direito.
 
    <img src="docs/images/install/pt-3.png" width="640" alt="A extensão instalada">
 
 Ao abrir, o Chrome pode mostrar um aviso sobre extensões em modo de desenvolvedor: é normal, só feche.
-Quando sair versão nova, o cartão avisa e mostra [como atualizar](https://allanlotta.github.io/bo1-zombies-coop/?lang=pt#update).
+O cartão Co-op não avisa das atualizações deste fork: veja a página de [Releases](https://github.com/Baruka11/bo1-zombies-coop/releases), troque os arquivos da pasta pelos novos e recarregue a extensão.
 
 ### Jogar
 
@@ -350,7 +368,7 @@ cartão avisa. O seu próprio relay também é grátis, leva uns 5 minutos e a c
 **Pelo botão (sem terminal):**
 
 1. Crie uma conta grátis em [dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up) e confirme o e-mail.
-2. Clique em [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AllanLotta/bo1-zombies-coop/tree/main/relay), entre na conta,
+2. Clique em [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Baruka11/bo1-zombies-coop/tree/main/relay), entre na conta,
    autorize a criação de uma cópia do relay no seu GitHub e clique em **Deploy**. Se a Cloudflare pedir um subdomínio
    `workers.dev`, qualquer nome serve.
 3. Copie o endereço do seu relay quando ficar pronto: `https://bo1-zombies-coop-relay.<seu-nome>.workers.dev`.
