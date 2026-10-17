@@ -1,4 +1,4 @@
-// BO1 Zombies Co-op 2.4.4 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
+// BO1 Zombies Co-op 2.4.5 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
 (() => {
   // relay/src/protocol.js
   var ROLES = Object.freeze(["host", "guest"]);
@@ -1227,7 +1227,9 @@
 
   // src/util/diagnostics.js
   var HITCH_MS = 300;
-  var JUMP_UNITS = 150;
+  var JUMP_BASE_UNITS = 150;
+  var MAX_UNITS_PER_S = 450;
+  var FPS_WINDOW_MS = 1e4;
   var FIXED_CAMERA = 1024;
   var KEEP = 20;
   var LOG_LINES = 60;
@@ -1243,6 +1245,7 @@
   }
   function context(session) {
     const now = Date.now();
+    if (document.hidden) return "the game tab was in the background";
     if (now - (session.resumedAt ?? 0) < 4e3) return "just after a pause";
     if (now - (session.rosterChangedAt ?? 0) < 15e3) return "a player was joining or leaving";
     return "steady play";
@@ -1254,25 +1257,46 @@
     return [...counts].map(([why, n]) => `${n} ${why}`).join(", ");
   }
   function sampleView(session) {
-    const view2 = latestView();
-    const sample = session.sample ??= { ms: null, at: 0, origin: null };
-    if (session.paused || view2 && view2.flags & FIXED_CAMERA) {
-      sample.at = 0;
-      sample.ms = view2?.ms ?? sample.ms;
-      return;
+    const sample = session.sample ??= { reader: null, lastView: null, lastViewMs: -1, fpsWindow: [] };
+    sampleFrames(session, sample);
+    sampleJumps(session, sample);
+  }
+  function sampleFrames(session, sample) {
+    sample.reader ??= window.five?.engine?.presentReader?.() ?? null;
+    const frames = sample.reader?.();
+    if (!frames?.intervals.length) return;
+    const now = Date.now();
+    if (!session.paused) {
+      for (const interval of frames.intervals) {
+        if (interval > HITCH_MS) remember(session.hitches, { at: now, ms: Math.round(interval), why: context(session) });
+      }
     }
-    if (!view2 || view2.ms === sample.ms) return;
-    const now = performance.now();
-    if (sample.at) {
-      const gap = now - sample.at;
-      if (gap > HITCH_MS) remember(session.hitches, { at: Date.now(), ms: Math.round(gap), why: context(session) });
-      const moved = distance(sample.origin, view2.origin);
+    const total = frames.intervals.reduce((sum, value) => sum + value, 0);
+    sample.fpsWindow.push({ at: now, frames: frames.intervals.length, ms: total });
+    while (sample.fpsWindow.length && now - sample.fpsWindow[0].at > FPS_WINDOW_MS) sample.fpsWindow.shift();
+  }
+  function sampleJumps(session, sample) {
+    for (const view2 of window.five?.views ?? []) {
+      if (view2.ms <= sample.lastViewMs) continue;
+      sample.lastViewMs = view2.ms;
+      const usable = Array.isArray(view2.origin) && view2.origin.length === 3 && view2.origin.every(Number.isFinite) && !(view2.flags & FIXED_CAMERA) && !view2.paused;
+      const previous = sample.lastView;
+      sample.lastView = usable ? view2 : null;
+      if (!usable || !previous) continue;
+      const seconds = (view2.engineMs - previous.engineMs) / 1e3;
+      if (!(seconds > 0) || seconds > 5) continue;
+      const moved = distance(previous.origin, view2.origin);
       const ours = Date.now() - (session.movedAt ?? 0) < 3e3;
-      if (moved > JUMP_UNITS && !ours) remember(session.jumps, { at: Date.now(), units: Math.round(moved), ms: Math.round(gap), why: context(session) });
+      if (moved > JUMP_BASE_UNITS + MAX_UNITS_PER_S * seconds && !ours) {
+        remember(session.jumps, { at: Date.now(), units: Math.round(moved), ms: Math.round(seconds * 1e3), why: context(session) });
+      }
     }
-    sample.ms = view2.ms;
-    sample.at = now;
-    sample.origin = view2.origin;
+  }
+  function recentFps(session) {
+    const window10 = session.sample?.fpsWindow ?? [];
+    const frames = window10.reduce((sum, w) => sum + w.frames, 0);
+    const ms = window10.reduce((sum, w) => sum + w.ms, 0);
+    return ms > 500 ? Math.round(1e3 * frames / ms) : null;
   }
   function buildReport(session, defaultRelay) {
     const lines = [];
@@ -1294,9 +1318,11 @@
     lines.push(...session.pauses.length ? session.pauses.map((p) => `  ${p}`) : ["  none"]);
     const worst = Math.max(0, ...session.hitches.map((h) => h.ms));
     lines.push("");
-    lines.push(`stalls over ${HITCH_MS} ms while playing: ${session.hitches.length} kept, worst ${worst} ms${session.hitches.length ? ` (${byContext(session.hitches)})` : ""}`);
+    const fps = recentFps(session);
+    lines.push(`game frame rate over the last ${FPS_WINDOW_MS / 1e3} s: ${fps ?? "-"} fps`);
+    lines.push(`stalls over ${HITCH_MS} ms between presented frames: ${session.hitches.length} kept, worst ${worst} ms${session.hitches.length ? ` (${byContext(session.hitches)})` : ""}`);
     lines.push(...session.hitches.slice(-8).map((h) => `  ${clock(h.at)} ${h.ms} ms, ${h.why}`));
-    lines.push(`sudden jumps over ${JUMP_UNITS} units: ${session.jumps.length} kept${session.jumps.length ? ` (${byContext(session.jumps)})` : ""}`);
+    lines.push(`sudden jumps (a move far beyond ${MAX_UNITS_PER_S} units a second): ${session.jumps.length} kept${session.jumps.length ? ` (${byContext(session.jumps)})` : ""}`);
     lines.push(...session.jumps.slice(-8).map((j) => `  ${clock(j.at)} ${j.units} units in ${j.ms} ms, ${j.why}`));
     lines.push("");
     lines.push(`events (last ${LOG_LINES}):`);
@@ -1789,7 +1815,7 @@
   }
 
   // src/session/session.js
-  var VERSION = "2.4.4";
+  var VERSION = "2.4.5";
   var AIM_LEVELS = 10;
   function createSession(search = location.search) {
     const params = new URLSearchParams(search);
