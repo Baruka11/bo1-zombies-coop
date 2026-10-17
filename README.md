@@ -8,12 +8,12 @@
 A free Chrome extension for [vel.gg/bsz](https://vel.gg/bsz/): host a game, send a link, play Kino der Toten together.<br>
 With controller support and a fun mode for the host (god mode, wonder weapons, infinite ammo, flying and more).
 
-[![Latest release](https://img.shields.io/github/v/release/Baruka11/bo1-zombies-coop?include_prereleases&label=download&color=e2552f)](https://github.com/Baruka11/bo1-zombies-coop/releases)
+[![Latest release](https://img.shields.io/github/v/release/Baruka11/bo1-zombies-coop?label=download&color=e2552f)](https://github.com/Baruka11/bo1-zombies-coop/releases)
 ![Players](https://img.shields.io/badge/players-up%20to%204-63d471)
 ![Maps](https://img.shields.io/badge/maps-all%2010-5aa8ff)
 ![Browser](https://img.shields.io/badge/browser-Chrome-f4c542)
 
-### [⬇ Download the extension](https://github.com/Baruka11/bo1-zombies-coop/releases) · [Install guide with pictures](https://allanlotta.github.io/bo1-zombies-coop/)
+### [⬇ Download the extension](https://github.com/Baruka11/bo1-zombies-coop/releases/latest/download/bo1-zombies-coop.zip) · [Install guide with pictures](https://allanlotta.github.io/bo1-zombies-coop/)
 
 **English** · [Português](#português)
 
@@ -66,7 +66,7 @@ With controller support and a fun mode for the host (god mode, wonder weapons, i
 
 Step-by-step page with pictures, in English and Portuguese: **[allanlotta.github.io/bo1-zombies-coop](https://allanlotta.github.io/bo1-zombies-coop/)**
 
-1. **[Download the extension](https://github.com/Baruka11/bo1-zombies-coop/releases)** and unzip it.
+1. **[Download the extension](https://github.com/Baruka11/bo1-zombies-coop/releases/latest/download/bo1-zombies-coop.zip)** and unzip it.
    You get a folder called `bo1-zombies-coop`: move it somewhere it can stay (Chrome keeps using it).
 2. Paste `chrome://extensions` into Chrome's address bar and switch on **Developer mode**, top right:
 
@@ -300,7 +300,7 @@ Com controle e um modo diversão para o host (imortal, armas especiais, muniçã
 
 Passo a passo com imagens: **[allanlotta.github.io/bo1-zombies-coop](https://allanlotta.github.io/bo1-zombies-coop/?lang=pt)**
 
-1. **[Baixe a extensão](https://github.com/Baruka11/bo1-zombies-coop/releases)** e descompacte.
+1. **[Baixe a extensão](https://github.com/Baruka11/bo1-zombies-coop/releases/latest/download/bo1-zombies-coop.zip)** e descompacte.
    Aparece uma pasta `bo1-zombies-coop`: deixe ela num lugar fixo, como Documentos (o Chrome continua usando a pasta).
 2. Cole `chrome://extensions` na barra de endereços do Chrome e ligue o **Modo do desenvolvedor**, no canto superior direito:
 
