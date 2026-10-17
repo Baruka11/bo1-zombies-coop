@@ -59,6 +59,7 @@ try {
   a.guest.tick();
   await until(() => a.host.isOpen(1) && a.guest.isOpen(0), 15000, "the link to open");
   ok(true, `link open (signals: ${a.got.signals.map((s) => s.join(":")).join(" ")})`);
+  ok(a.guest.status(0).state === "open" && a.host.status(1).state === "open", "status() says the link is open on both sides");
 
   a.guest.sendGame(0, frame(7, 8));
   a.host.sendGame(1, frame(9));
@@ -97,6 +98,7 @@ try {
   await until(() => b.got.signals.some(([who, k]) => who === "host" && k === "no"), 5000, "the host's refusal");
   await wait(300);
   ok(!b.guest.links.has(0) && b.guest.retries > 3, "a guest told no stops asking");
+  ok(b.guest.status(0).state === "refused", "and status() says why: the host refused");
   b.guest.close(); b.host.close();
 
   // --- turned off ------------------------------------------------------------------------------------------------
@@ -106,6 +108,7 @@ try {
   c.guest.setEnabled(false);
   await wait(200);
   ok(!c.guest.isOpen(0) && c.guest.sendGame(0, frame(1)) === false, "turning direct links off ends them and sends fall back to the relay");
+  ok(c.guest.status(0).state === "off", "and status() says they are off");
   c.guest.close(); c.host.close();
 } catch (error) {
   failed += 1;

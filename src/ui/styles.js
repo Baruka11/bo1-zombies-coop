@@ -82,6 +82,7 @@ input:focus { border-color: var(--accent); }
 input::placeholder { color: var(--dim); }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; margin: 0; }
 .kv dt { color: var(--muted); } .kv dd { margin: 0; text-align: right; }
+.kv dd.ok { color: var(--ok); }
 .meter { height: 5px; border-radius: 3px; background: var(--bg3); overflow: hidden; margin-top: 5px; }
 .meter > span { display: block; height: 100%; background: var(--ok); }
 .meter.warn > span { background: var(--wait); } .meter.full > span { background: var(--bad); }

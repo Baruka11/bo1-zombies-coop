@@ -1,4 +1,4 @@
-// BO1 Zombies Co-op 2.4.0 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
+// BO1 Zombies Co-op 2.4.1 for vel.gg. Built from src/ with scripts/build.mjs; edit the sources, not this file.
 (() => {
   // relay/src/protocol.js
   var ROLES = Object.freeze(["host", "guest"]);
@@ -624,6 +624,7 @@
       this.links = /* @__PURE__ */ new Map();
       this.banned = /* @__PURE__ */ new Map();
       this.lastOfferAt = /* @__PURE__ */ new Map();
+      this.failures = /* @__PURE__ */ new Map();
       this.retries = 0;
       this.retryAt = 0;
       this.log = options.log ?? (() => {
@@ -695,6 +696,17 @@
     openSeats() {
       return [...this.links].filter(([, link]) => link.open).map(([seat]) => seat);
     }
+    /** One seat's route, for the card: { state: off | unsupported | open | connecting | refused | failed | idle, rtt?, why? }. */
+    status(seat) {
+      if (!this.enabled) return { state: "off" };
+      if (!this.supported) return { state: "unsupported" };
+      const link = this.links.get(seat);
+      if (link?.open) return { state: "open", rtt: Number.isFinite(link.rtt) ? link.rtt : null };
+      if (link) return { state: "connecting" };
+      const why = this.failures.get(seat);
+      if (why) return { state: why === "refused" ? "refused" : "failed", why };
+      return { state: "idle" };
+    }
     /** The direct route's state per seat: "open", "connecting", or absent. */
     summary() {
       const out = {};
@@ -753,6 +765,7 @@
         await this.remoteCandidates(link, message);
       } else if (message.k === "no") {
         this.drop(0, "host does not take direct links");
+        this.failures.set(0, "refused");
         this.retries = RETRY_MS.length + 1;
       }
     }
@@ -872,6 +885,7 @@
     maybeOpen(link) {
       if (link.open || this.links.get(link.seat) !== link || link.game?.readyState !== "open" || link.ctl?.readyState !== "open") return;
       link.open = true;
+      this.failures.delete(link.seat);
       clearTimeout(link.timer);
       if (link.seat === 0) this.retries = 0;
       this.log(`direct: link to ${link.seat === 0 ? "the host" : `player ${link.seat + 1}`} is open`);
@@ -939,6 +953,7 @@
       } catch {
       }
       this.log(`direct: link to ${seat === 0 ? "the host" : `player ${seat + 1}`} ended (${why})`);
+      if (!/^(turned off|closed|host left|guest left|new offer|host does not)/.test(why)) this.failures.set(seat, why);
       if (this.role === "guest" && retry && this.enabled && !why.startsWith("host")) {
         this.retryAt = this.now() + (RETRY_MS[this.retries] ?? RETRY_MS.at(-1));
         this.retries += 1;
@@ -1394,8 +1409,17 @@
       routeTrying: "Trying a direct link…",
       routeOff: "Relay only (direct off)",
       routeUnsupported: "Relay only (not supported here)",
-      directOn: "Allow direct links",
+      directLabel: "Connection mode",
+      directAllowed: "Direct allowed",
       directOff: "Relay only",
+      routeOpen: (ms) => `Direct${ms == null ? "" : ` · ${ms} ms`}`,
+      routeOldVersion: (who) => `Relay (${who} has a version without direct links)`,
+      routeRefused: "Relay (the host does not accept direct links)",
+      routeFailed: (why) => `Relay (direct failed: ${why})`,
+      whyTimeout: "no answer in time, check the network or firewall",
+      whyFailed: "the link could not be set up",
+      whyFlood: "too many packets",
+      theHost: "the host",
       directNote: "A direct link cuts the delay, but the other players in the room can then see your IP address. Turn it off to stay behind the relay.",
       routeSome: (n, total) => `${n} of ${total} direct`,
       copyReport: "Copy diagnostic report",
@@ -1527,8 +1551,17 @@
       routeTrying: "Tentando conexão direta…",
       routeOff: "Só relay (direta desligada)",
       routeUnsupported: "Só relay (não suportado aqui)",
-      directOn: "Permitir conexão direta",
+      directLabel: "Modo de conexão",
+      directAllowed: "Direta permitida",
       directOff: "Só relay",
+      routeOpen: (ms) => `Direta${ms == null ? "" : ` · ${ms} ms`}`,
+      routeOldVersion: (who) => `Relay (${who} tem uma versão sem conexão direta)`,
+      routeRefused: "Relay (o host não aceita conexão direta)",
+      routeFailed: (why) => `Relay (direta falhou: ${why})`,
+      whyTimeout: "sem resposta a tempo, confira a rede ou o firewall",
+      whyFailed: "não foi possível estabelecer o link",
+      whyFlood: "pacotes demais",
+      theHost: "o host",
       directNote: "A conexão direta diminui o atraso, mas os outros jogadores da sala passam a ver o seu endereço IP. Desligue para ficar atrás do relay.",
       routeSome: (n, total) => `${n} de ${total} direta`,
       copyReport: "Copiar relatório de diagnóstico",
@@ -1660,8 +1693,17 @@
       routeTrying: "Essai d'une connexion directe…",
       routeOff: "Relais seulement (direct désactivé)",
       routeUnsupported: "Relais seulement (non pris en charge ici)",
-      directOn: "Autoriser les connexions directes",
+      directLabel: "Mode de connexion",
+      directAllowed: "Direct autorisé",
       directOff: "Relais seulement",
+      routeOpen: (ms) => `Directe${ms == null ? "" : ` · ${ms} ms`}`,
+      routeOldVersion: (who) => `Relais (${who} a une version sans connexion directe)`,
+      routeRefused: "Relais (l'hôte n'accepte pas les connexions directes)",
+      routeFailed: (why) => `Relais (direct impossible : ${why})`,
+      whyTimeout: "pas de réponse à temps, vérifie le réseau ou le pare-feu",
+      whyFailed: "la liaison n'a pas pu s'établir",
+      whyFlood: "trop de paquets",
+      theHost: "l'hôte",
       directNote: "Une connexion directe réduit le délai, mais les autres joueurs de la salle voient alors ton adresse IP. Désactive-la pour rester derrière le relais.",
       routeSome: (n, total) => `${n} sur ${total} en direct`,
       copyReport: "Copier le rapport de diagnostic",
@@ -1702,7 +1744,7 @@
   }
 
   // src/session/session.js
-  var VERSION = "2.4.0";
+  var VERSION = "2.4.1";
   var AIM_LEVELS = 10;
   function createSession(search = location.search) {
     const params = new URLSearchParams(search);
@@ -2884,6 +2926,7 @@ input:focus { border-color: var(--accent); }
 input::placeholder { color: var(--dim); }
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 12px; margin: 0; }
 .kv dt { color: var(--muted); } .kv dd { margin: 0; text-align: right; }
+.kv dd.ok { color: var(--ok); }
 .meter { height: 5px; border-radius: 3px; background: var(--bg3); overflow: hidden; margin-top: 5px; }
 .meter > span { display: block; height: 100%; background: var(--ok); }
 .meter.warn > span { background: var(--wait); } .meter.full > span { background: var(--bad); }
@@ -3201,6 +3244,39 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
       }
     }
   };
+
+  // src/util/updates.js
+  var LATEST = "https://api.github.com/repos/AllanLotta/bo1-zombies-coop/releases/latest";
+  var UPDATE_GUIDE = "https://allanlotta.github.io/bo1-zombies-coop/#update";
+  var RELAY_GUIDE = "https://allanlotta.github.io/bo1-zombies-coop/#relay";
+  var CHECK_EVERY_MS = 6 * 3600 * 1e3;
+  var parts = (version) => String(version).replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
+  function isNewer(latest, current) {
+    const a = parts(latest);
+    const b = parts(current);
+    for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+      if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
+    }
+    return false;
+  }
+  async function checkForUpdate(session) {
+    let cached = null;
+    try {
+      cached = JSON.parse(readSetting("update", "null"));
+    } catch {
+    }
+    let latest = cached?.latest;
+    if (!cached || Date.now() - cached.checkedAt > CHECK_EVERY_MS) {
+      try {
+        const response = await fetch(LATEST, { headers: { accept: "application/vnd.github+json" } });
+        if (response.ok) latest = (await response.json()).tag_name;
+        saveSetting("update", JSON.stringify({ checkedAt: Date.now(), latest }));
+      } catch {
+        return;
+      }
+    }
+    if (latest && isNewer(latest, session.version)) session.update = { version: String(latest).replace(/^v/, ""), url: UPDATE_GUIDE };
+  }
 
   // src/fun/text.js
   var TEXT = {
@@ -3691,10 +3767,9 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
     blocks.push({ kind: "buttons", buttons: actions2 });
     if (funAvailable(session)) blocks.push(funSection(session));
     blocks.push(settingsSection(session, true));
-    const ping = session.stats?.rtt != null ? `${Math.round(session.stats.rtt)} ms` : "–";
     const pill = {
       players: roster.map((p) => ({ n: p.n, on: CONNECTED.includes(p.status) })),
-      texts: [session.paused ? T.chip.paused : ping, ...session.gamepad?.status === "active" ? ["🎮"] : []]
+      texts: [session.paused ? T.chip.paused : `${directMark(session)}${pingText(session)}`, ...session.gamepad?.status === "active" ? ["🎮"] : []]
     };
     return { chip, tagline: `${T.room} ${session.room}`, blocks, compact: playing && !session.error, pill };
   }
@@ -3829,8 +3904,8 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
     if (inRoom) {
       const items = [
         [T.relay, T.relayState[session.socket] ?? T.relayState.idle, session.socket === "open" ? "" : "error"],
-        [T.route, routeLabel(session)],
-        [T.ping, session.stats?.rtt != null ? `${Math.round(session.stats.rtt)} ms` : "–"]
+        ...routeItems(session),
+        [T.ping, pingText(session)]
       ];
       if (session.stats?.lost) items.push([T.dropped, String(session.stats.lost)]);
       blocks.push({ kind: "kv", items });
@@ -3838,22 +3913,52 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
     blocks.push(...directBlocks(session, inRoom), ...controllerBlocks(session), ...relayBlocks(session), { kind: "credits", text: T.credits });
     return { kind: "section", title: T.settings, act: "settings", open: session.showSettings, blocks };
   }
-  function routeLabel(session) {
+  var supportsDirect = (version) => !isNewer("2.3.0", version);
+  var whyText = (why) => /no link in time/.test(why) ? T.whyTimeout : /too much/.test(why) ? T.whyFlood : T.whyFailed;
+  function routeText(session, seat) {
+    const status = session.direct.status(seat);
+    if (status.state === "open") return T.routeOpen(status.rtt == null ? null : Math.round(status.rtt));
+    const version = seat === 0 ? session.hostInfo?.v : session.guests.get(seat)?.state?.v;
+    if (version && !supportsDirect(version)) return T.routeOldVersion(seat === 0 ? T.theHost : T.player(seat + 1));
+    if (status.state === "connecting") return T.routeTrying;
+    if (status.state === "refused") return T.routeRefused;
+    if (status.state === "failed") return T.routeFailed(whyText(status.why));
+    return T.routeRelay;
+  }
+  function routeItems(session) {
     const links = session.direct;
-    if (!session.directEnabled) return T.routeOff;
-    if (!links?.supported) return T.routeUnsupported;
-    if (session.mode === "guest") return links.isOpen(0) ? T.routeDirect : links.links.has(0) ? T.routeTrying : T.routeRelay;
+    if (!session.directEnabled) return [[T.route, T.routeOff]];
+    if (!links?.supported) return [[T.route, T.routeUnsupported]];
+    if (session.mode === "guest") return [[T.route, routeText(session, 0), links.isOpen(0) ? "ok" : ""]];
+    const present = [...session.guests.values()].filter((g) => g.present).sort((a, b) => a.seat - b.seat);
+    if (!present.length) return [[T.route, T.routeRelay]];
+    return present.map((g) => [`${T.route} · ${T.player(g.seat + 1)}`, routeText(session, g.seat), links.isOpen(g.seat) ? "ok" : ""]);
+  }
+  function pingValue(session) {
+    const links = session.direct;
+    if (session.mode === "guest") return links?.rtt(0) ?? session.stats?.rtt ?? null;
+    const values = [...session.guests.values()].filter((g) => g.present).map((g) => links?.rtt(g.seat) ?? session.stats?.rtts?.[g.seat]).filter(Number.isFinite);
+    return values.length ? Math.max(...values) : session.stats?.rtt ?? null;
+  }
+  var pingText = (session) => {
+    const ping = pingValue(session);
+    return ping != null ? `${Math.round(ping)} ms` : "–";
+  };
+  function directMark(session) {
+    const links = session.direct;
+    if (!links || !session.directEnabled) return "";
+    if (session.mode === "guest") return links.isOpen(0) ? "⚡ " : "";
     const present = [...session.guests.values()].filter((g) => g.present);
-    if (!present.length) return T.routeRelay;
-    return T.routeSome(present.filter((g) => links.isOpen(g.seat)).length, present.length);
+    const open = present.filter((g) => links.isOpen(g.seat)).length;
+    return open ? `⚡${open}/${present.length} ` : "";
   }
   function directBlocks(session, inRoom) {
     if (!inRoom) return [];
-    const label = session.directEnabled ? T.directOff : T.directOn;
     const copied = Date.now() - session.copiedReportAt < COPIED_MS;
     return [
+      { kind: "label", text: T.directLabel },
+      { kind: "chips", chips: [{ act: "direct", arg: "1", label: T.directAllowed, on: session.directEnabled }, { act: "direct", arg: "0", label: T.directOff, on: !session.directEnabled }] },
       { kind: "text", cls: "muted small", text: T.directNote },
-      { kind: "buttons", buttons: [{ act: "direct", label, style: "ghost" }] },
       { kind: "text", cls: "muted small", text: T.reportNote },
       { kind: "buttons", buttons: [{ act: "copyReport", label: copied ? T.copied : T.copyReport, style: copied ? "done" : "ghost" }] }
     ];
@@ -3892,39 +3997,6 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
   }
   var onSharedRelay = (session) => session.relay === DEFAULT_RELAY && !session.overQuota;
   var relayButtons = () => [{ act: "openRelayGuide", label: T.relayGuide }, { act: "editRelayNow", label: T.relayHaveOne, style: "ghost" }];
-
-  // src/util/updates.js
-  var LATEST = "https://api.github.com/repos/AllanLotta/bo1-zombies-coop/releases/latest";
-  var UPDATE_GUIDE = "https://allanlotta.github.io/bo1-zombies-coop/#update";
-  var RELAY_GUIDE = "https://allanlotta.github.io/bo1-zombies-coop/#relay";
-  var CHECK_EVERY_MS = 6 * 3600 * 1e3;
-  var parts = (version) => String(version).replace(/^v/, "").split(".").map((n) => parseInt(n, 10) || 0);
-  function isNewer(latest, current) {
-    const a = parts(latest);
-    const b = parts(current);
-    for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
-      if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) > (b[i] ?? 0);
-    }
-    return false;
-  }
-  async function checkForUpdate(session) {
-    let cached = null;
-    try {
-      cached = JSON.parse(readSetting("update", "null"));
-    } catch {
-    }
-    let latest = cached?.latest;
-    if (!cached || Date.now() - cached.checkedAt > CHECK_EVERY_MS) {
-      try {
-        const response = await fetch(LATEST, { headers: { accept: "application/vnd.github+json" } });
-        if (response.ok) latest = (await response.json()).tag_name;
-        saveSetting("update", JSON.stringify({ checkedAt: Date.now(), latest }));
-      } catch {
-        return;
-      }
-    }
-    if (latest && isNewer(latest, session.version)) session.update = { version: String(latest).replace(/^v/, ""), url: UPDATE_GUIDE };
-  }
 
   // src/main.js
   var TICK_MS = 50;
@@ -4042,8 +4114,8 @@ button.act.tiny { padding: 5px 6px; font-size: 11.5px; font-weight: 600; }
         session.sentPhaseAt = 0;
       },
       // Direct links show our IP address to the other players; this switches them on or off for this browser.
-      direct: () => {
-        session.directEnabled = !session.directEnabled;
+      direct: (allowed) => {
+        session.directEnabled = allowed === "1";
         saveSetting("direct", session.directEnabled ? "" : "0");
         session.direct?.setEnabled(session.directEnabled);
       },

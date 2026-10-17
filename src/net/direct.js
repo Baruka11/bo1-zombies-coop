@@ -87,6 +87,7 @@ export class DirectLinks {
     this.links = new Map(); // seat -> link; a guest has only seat 0 (the host)
     this.banned = new Map(); // seat -> until
     this.lastOfferAt = new Map();
+    this.failures = new Map(); // seat -> why the last attempt ended, until a link opens
     this.retries = 0;
     this.retryAt = 0;
     this.log = options.log ?? (() => {});
@@ -168,6 +169,18 @@ export class DirectLinks {
     return [...this.links].filter(([, link]) => link.open).map(([seat]) => seat);
   }
 
+  /** One seat's route, for the card: { state: off | unsupported | open | connecting | refused | failed | idle, rtt?, why? }. */
+  status(seat) {
+    if (!this.enabled) return { state: "off" };
+    if (!this.supported) return { state: "unsupported" };
+    const link = this.links.get(seat);
+    if (link?.open) return { state: "open", rtt: Number.isFinite(link.rtt) ? link.rtt : null };
+    if (link) return { state: "connecting" };
+    const why = this.failures.get(seat);
+    if (why) return { state: why === "refused" ? "refused" : "failed", why };
+    return { state: "idle" };
+  }
+
   /** The direct route's state per seat: "open", "connecting", or absent. */
   summary() {
     const out = {};
@@ -231,6 +244,7 @@ export class DirectLinks {
       await this.remoteCandidates(link, message);
     } else if (message.k === "no") {
       this.drop(0, "host does not take direct links");
+      this.failures.set(0, "refused");
       this.retries = RETRY_MS.length + 1;
     }
   }
@@ -346,6 +360,7 @@ export class DirectLinks {
   maybeOpen(link) {
     if (link.open || this.links.get(link.seat) !== link || link.game?.readyState !== "open" || link.ctl?.readyState !== "open") return;
     link.open = true;
+    this.failures.delete(link.seat);
     clearTimeout(link.timer);
     if (link.seat === 0) this.retries = 0;
     this.log(`direct: link to ${link.seat === 0 ? "the host" : `player ${link.seat + 1}`} is open`);
@@ -422,6 +437,8 @@ export class DirectLinks {
       // already closed
     }
     this.log(`direct: link to ${seat === 0 ? "the host" : `player ${seat + 1}`} ended (${why})`);
+    // Ending on purpose (turned off, someone left, a newer offer) is not a failure to report.
+    if (!/^(turned off|closed|host left|guest left|new offer|host does not)/.test(why)) this.failures.set(seat, why);
     if (this.role === "guest" && retry && this.enabled && !why.startsWith("host")) {
       this.retryAt = this.now() + (RETRY_MS[this.retries] ?? RETRY_MS.at(-1));
       this.retries += 1;

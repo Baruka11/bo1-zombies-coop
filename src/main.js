@@ -165,8 +165,8 @@ function actions(session) {
       session.sentPhaseAt = 0; // resend our state, which carries the name
     },
     // Direct links show our IP address to the other players; this switches them on or off for this browser.
-    direct: () => {
-      session.directEnabled = !session.directEnabled;
+    direct: (allowed) => {
+      session.directEnabled = allowed === "1";
       saveSetting("direct", session.directEnabled ? "" : "0");
       session.direct?.setEnabled(session.directEnabled);
     },

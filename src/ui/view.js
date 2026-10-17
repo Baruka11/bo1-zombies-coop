@@ -8,6 +8,7 @@ import { guestRoster, hostRoster } from "../session/lobby.js";
 import { validSeat } from "../session/session.js";
 import { DEFAULT_RELAY } from "../util/relay.js";
 import { cleanName } from "../util/settings.js";
+import { isNewer } from "../util/updates.js";
 import { T } from "./strings.js";
 import { funAvailable, funSection } from "../fun/fun.js";
 
@@ -43,10 +44,9 @@ export function view(session) {
   if (funAvailable(session)) blocks.push(funSection(session));
   blocks.push(settingsSection(session, true));
 
-  const ping = session.stats?.rtt != null ? `${Math.round(session.stats.rtt)} ms` : "–";
   const pill = {
     players: roster.map((p) => ({ n: p.n, on: CONNECTED.includes(p.status) })),
-    texts: [session.paused ? T.chip.paused : ping, ...(session.gamepad?.status === "active" ? ["\u{1F3AE}"] : [])],
+    texts: [session.paused ? T.chip.paused : `${directMark(session)}${pingText(session)}`, ...(session.gamepad?.status === "active" ? ["\u{1F3AE}"] : [])],
   };
   return { chip, tagline: `${T.room} ${session.room}`, blocks, compact: playing && !session.error, pill };
 }
@@ -196,8 +196,8 @@ function settingsSection(session, inRoom) {
   if (inRoom) {
     const items = [
       [T.relay, T.relayState[session.socket] ?? T.relayState.idle, session.socket === "open" ? "" : "error"],
-      [T.route, routeLabel(session)],
-      [T.ping, session.stats?.rtt != null ? `${Math.round(session.stats.rtt)} ms` : "–"],
+      ...routeItems(session),
+      [T.ping, pingText(session)],
     ];
     if (session.stats?.lost) items.push([T.dropped, String(session.stats.lost)]);
     blocks.push({ kind: "kv", items });
@@ -206,24 +206,64 @@ function settingsSection(session, inRoom) {
   return { kind: "section", title: T.settings, act: "settings", open: session.showSettings, blocks };
 }
 
-/** How this player's game packets travel: a guest has one route (to the host), the host one per guest. */
-function routeLabel(session) {
+/** Direct links exist from 2.3.0; a player on an older version never answers an offer. */
+const supportsDirect = (version) => !isNewer("2.3.0", version);
+
+const whyText = (why) => (/no link in time/.test(why) ? T.whyTimeout : /too much/.test(why) ? T.whyFlood : T.whyFailed);
+
+/** How the packets to one player travel, in words: seat 0 is the host (a guest's view), the others are guests. */
+function routeText(session, seat) {
+  const status = session.direct.status(seat);
+  if (status.state === "open") return T.routeOpen(status.rtt == null ? null : Math.round(status.rtt));
+  const version = seat === 0 ? session.hostInfo?.v : session.guests.get(seat)?.state?.v;
+  if (version && !supportsDirect(version)) return T.routeOldVersion(seat === 0 ? T.theHost : T.player(seat + 1));
+  if (status.state === "connecting") return T.routeTrying;
+  if (status.state === "refused") return T.routeRefused;
+  if (status.state === "failed") return T.routeFailed(whyText(status.why));
+  return T.routeRelay;
+}
+
+/** Rows of the Settings list: a guest has one route (to the host), the host one per guest. */
+function routeItems(session) {
   const links = session.direct;
-  if (!session.directEnabled) return T.routeOff;
-  if (!links?.supported) return T.routeUnsupported;
-  if (session.mode === "guest") return links.isOpen(0) ? T.routeDirect : links.links.has(0) ? T.routeTrying : T.routeRelay;
+  if (!session.directEnabled) return [[T.route, T.routeOff]];
+  if (!links?.supported) return [[T.route, T.routeUnsupported]];
+  if (session.mode === "guest") return [[T.route, routeText(session, 0), links.isOpen(0) ? "ok" : ""]];
+  const present = [...session.guests.values()].filter((g) => g.present).sort((a, b) => a.seat - b.seat);
+  if (!present.length) return [[T.route, T.routeRelay]];
+  return present.map((g) => [`${T.route} \xB7 ${T.player(g.seat + 1)}`, routeText(session, g.seat), links.isOpen(g.seat) ? "ok" : ""]);
+}
+
+/** The ping to show: over a direct link where there is one. A host shows its slowest player. */
+function pingValue(session) {
+  const links = session.direct;
+  if (session.mode === "guest") return links?.rtt(0) ?? session.stats?.rtt ?? null;
+  const values = [...session.guests.values()].filter((g) => g.present).map((g) => links?.rtt(g.seat) ?? session.stats?.rtts?.[g.seat]).filter(Number.isFinite);
+  return values.length ? Math.max(...values) : session.stats?.rtt ?? null;
+}
+
+const pingText = (session) => {
+  const ping = pingValue(session);
+  return ping != null ? `${Math.round(ping)} ms` : "–";
+};
+
+/** A mark for the in-game indicator while players are linked directly: a guest has one link, the host counts them. */
+function directMark(session) {
+  const links = session.direct;
+  if (!links || !session.directEnabled) return "";
+  if (session.mode === "guest") return links.isOpen(0) ? "⚡ " : "";
   const present = [...session.guests.values()].filter((g) => g.present);
-  if (!present.length) return T.routeRelay;
-  return T.routeSome(present.filter((g) => links.isOpen(g.seat)).length, present.length);
+  const open = present.filter((g) => links.isOpen(g.seat)).length;
+  return open ? `⚡${open}/${present.length} ` : "";
 }
 
 function directBlocks(session, inRoom) {
   if (!inRoom) return [];
-  const label = session.directEnabled ? T.directOff : T.directOn;
   const copied = Date.now() - session.copiedReportAt < COPIED_MS;
   return [
+    { kind: "label", text: T.directLabel },
+    { kind: "chips", chips: [{ act: "direct", arg: "1", label: T.directAllowed, on: session.directEnabled }, { act: "direct", arg: "0", label: T.directOff, on: !session.directEnabled }] },
     { kind: "text", cls: "muted small", text: T.directNote },
-    { kind: "buttons", buttons: [{ act: "direct", label, style: "ghost" }] },
     { kind: "text", cls: "muted small", text: T.reportNote },
     { kind: "buttons", buttons: [{ act: "copyReport", label: copied ? T.copied : T.copyReport, style: copied ? "done" : "ghost" }] },
   ];
