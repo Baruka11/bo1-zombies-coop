@@ -105,7 +105,18 @@ const STRINGS = {
     relayGuide: "Create my relay",
     relayPitch: "Co-op runs through a relay. The shared one is free but small: a few hours of play a day for everyone together, and it runs out when many people play. Your own relay is free too, takes 5 minutes to create, and is only for your group.",
     relayPitchHost: "You are on the shared relay, which can run out on busy days. With your own (free, 5 minutes) your group never waits.",
-    relayHaveOne: "I already have one"
+    relayHaveOne: "I already have one",
+    hostTaken: "Somebody else holds the host seat of this room. If it was you, close the other tab and try again in a few minutes.",
+    route: "Route",
+    routeDirect: "Direct",
+    routeRelay: "Relay",
+    routeTrying: "Trying a direct link…",
+    routeOff: "Relay only (direct off)",
+    routeUnsupported: "Relay only (not supported here)",
+    directOn: "Allow direct links",
+    directOff: "Relay only",
+    directNote: "A direct link cuts the delay, but the other players in the room can then see your IP address. Turn it off to stay behind the relay.",
+    routeSome: (n, total) => `${n} of ${total} direct`
   },
   pt: {
     tagline: "at\xE9 4 jogadores",
@@ -210,7 +221,18 @@ const STRINGS = {
     relayGuide: "Criar meu relay",
     relayPitch: "O co-op passa por um relay. O compartilhado \xE9 gr\xE1tis, mas pequeno: algumas horas de jogo por dia para todo mundo junto, e acaba quando muita gente joga. O seu pr\xF3prio relay tamb\xE9m \xE9 gr\xE1tis, leva 5 minutos para criar e \xE9 s\xF3 do seu grupo.",
     relayPitchHost: "Voc\xEA est\xE1 no relay compartilhado, que pode acabar nos dias cheios. Com o seu (gr\xE1tis, 5 minutos) o seu grupo nunca espera.",
-    relayHaveOne: "J\xE1 tenho um"
+    relayHaveOne: "J\xE1 tenho um",
+    hostTaken: "Outra pessoa está como host desta sala. Se era você, feche a outra aba e tente de novo em alguns minutos.",
+    route: "Rota",
+    routeDirect: "Direta",
+    routeRelay: "Relay",
+    routeTrying: "Tentando conexão direta…",
+    routeOff: "Só relay (direta desligada)",
+    routeUnsupported: "Só relay (não suportado aqui)",
+    directOn: "Permitir conexão direta",
+    directOff: "Só relay",
+    directNote: "A conexão direta diminui o atraso, mas os outros jogadores da sala passam a ver o seu endereço IP. Desligue para ficar atrás do relay.",
+    routeSome: (n, total) => `${n} de ${total} direta`
   }
 };
 export const T = STRINGS[LANG];

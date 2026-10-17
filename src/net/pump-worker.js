@@ -2,6 +2,9 @@
 // rendering: it polls the engine's loopback queues every millisecond, batches what it finds to the relay, and writes
 // what the relay delivers back into the engine.
 //
+// Game packets go over a direct link to a player when one is open (see direct.js; the page owns the WebRTC objects,
+// since workers have none, and hands frames over by message) and through the relay otherwise.
+//
 // Host: one reader per guest seat (what the server sends that guest) and one writer (the shared inbound queue, each
 // packet stamped with its sender's port). Guest: one reader (its client's outgoing queue) and one writer (its client's
 // incoming queue, port 0).
@@ -12,6 +15,8 @@ const POLL_MS = 1;
 const FLUSH_MS = 4;
 const INBOX_LIMIT = 512;
 const PING_MS = 2000;
+// What one peer may send over a direct link, in frames per second: the relay's own limits (see relay/src/room.js).
+const DIRECT_LIMITS = { guest: { rate: 400, burst: 800 }, host: { rate: 1200, burst: 2400 } };
 
 const state = {
   role: null,
@@ -28,18 +33,20 @@ const state = {
   dropCommands: [],
   inbox: [],
   outbox: [],
+  direct: new Set(), // seats (0 is the host, for a guest) with an open direct link
+  directBuckets: new Map(),
   lastFlush: 0,
   looping: false,
-  stats: { packetsOut: 0, packetsIn: 0, bytesOut: 0, bytesIn: 0, framesOut: 0, framesIn: 0, dropped: 0, lost: 0, rtt: null, rtts: {} },
+  stats: { packetsOut: 0, packetsIn: 0, bytesOut: 0, bytesIn: 0, framesOut: 0, framesIn: 0, dropped: 0, lost: 0, rtt: null, rtts: {}, directIn: 0, directOut: 0, directInvalid: 0, directLimited: 0 },
 };
 const hosting = () => state.role === "host";
-const post = (message) => self.postMessage(message);
+const post = (message, transfer) => self.postMessage(message, transfer ?? []);
 
 self.onmessage = ({ data: message }) => {
   switch (message.type) {
     case "connect":
       state.role = message.role;
-      state.url = relaySocketUrl(message.relay, message.room, message.role, message.guestId);
+      state.url = relaySocketUrl(message.relay, message.room, message.role, message.guestId, message.hostToken);
       open();
       loop();
       break;
@@ -62,6 +69,13 @@ self.onmessage = ({ data: message }) => {
       break;
     case "send":
       sendText(message.message);
+      break;
+    case "direct":
+      state.direct = new Set(Array.isArray(message.seats) ? message.seats : []);
+      for (const seat of [...state.directBuckets.keys()]) if (!state.direct.has(seat)) state.directBuckets.delete(seat);
+      break;
+    case "direct-in":
+      onDirect(message.seat, message.data);
       break;
     case "close":
       state.closed = true;
@@ -95,8 +109,9 @@ function open() {
   socket.onclose = (event) => {
     if (state.socket === socket) state.socket = null;
     post({ type: "socket", state: "closed", code: event.code, reason: event.reason });
-    // 4001: another tab took this seat; 4004: the room is full. Retrying would not help either.
-    if (event.code === 4001 || event.code === 4004) state.closed = true;
+    // 4001: another tab took this seat; 4004: the room is full; 4006: somebody else holds the host seat. Retrying
+    // would not help any of them.
+    if (event.code === 4001 || event.code === 4004 || event.code === 4006) state.closed = true;
     // 4005: the relay is out of its daily allowance; check again now and then instead of hammering it.
     else if (event.code === 4005) setTimeout(open, 60000);
     else retry();
@@ -114,6 +129,35 @@ function onBinary(data) {
   const items = hosting() ? decodeSeatPackets(data) : decodePackets(data)?.map((packet) => ({ seat: 0, packet }));
   if (!items) return;
   state.stats.framesIn += 1;
+  accept(items);
+}
+
+/** A frame from a direct link. `seat` is the link's seat (the host's is 0), never anything the frame says. */
+function onDirect(seat, data) {
+  if (!state.direct.has(seat) || !(data instanceof ArrayBuffer)) return;
+  const { rate, burst } = DIRECT_LIMITS[hosting() ? "guest" : "host"];
+  const now = performance.now();
+  let bucket = state.directBuckets.get(seat);
+  if (!bucket) state.directBuckets.set(seat, (bucket = { tokens: burst, at: now }));
+  bucket.tokens = Math.min(burst, bucket.tokens + ((now - bucket.at) / 1000) * rate);
+  bucket.at = now;
+  if (bucket.tokens < 1) {
+    state.stats.directLimited += 1;
+    return;
+  }
+  bucket.tokens -= 1;
+  const packets = decodePackets(data);
+  if (!packets) {
+    state.stats.directInvalid += 1;
+    return;
+  }
+  state.stats.framesIn += 1;
+  state.stats.directIn += 1;
+  accept(packets.map((packet) => ({ seat, packet })));
+}
+
+/** Packets from either route, on their way into the engine. */
+function accept(items) {
   for (const item of items) {
     state.stats.packetsIn += 1;
     state.stats.bytesIn += item.packet.byteLength;
@@ -154,13 +198,49 @@ function sendText(message) {
   return true;
 }
 
+/** Sends a seat's packets over its direct link, in frames of the same shape a guest sends the relay. */
+function flushDirect(seat, items) {
+  let batch = [];
+  let size = 4;
+  const send = () => {
+    if (!batch.length) return;
+    const frame = encodePackets(batch);
+    post({ type: "direct-out", seat, data: frame.buffer }, [frame.buffer]);
+    state.stats.framesOut += 1;
+    state.stats.directOut += 1;
+    batch = [];
+    size = 4;
+  };
+  for (const { packet } of items) {
+    const bytes = 2 + packet.byteLength;
+    if (size + bytes > MAX_BINARY_BYTES) send();
+    batch.push(packet);
+    size += bytes;
+    state.stats.packetsOut += 1;
+    state.stats.bytesOut += packet.byteLength;
+  }
+  send();
+}
+
 function flush(now) {
   if (!state.outbox.length) return;
+  const seats = hosting();
+  const viaRelay = [];
+  const viaDirect = new Map();
+  for (const item of state.outbox) {
+    const key = seats ? item.seat : 0;
+    if (!state.direct.has(key)) viaRelay.push(item);
+    else if (viaDirect.has(key)) viaDirect.get(key).push(item);
+    else viaDirect.set(key, [item]);
+  }
+  for (const [seat, items] of viaDirect) flushDirect(seat, items);
+
   const socket = state.socket;
-  if (socket?.readyState !== WebSocket.OPEN) {
-    state.stats.dropped += state.outbox.length;
+  if (!viaRelay.length) {
+    // everything went over direct links
+  } else if (socket?.readyState !== WebSocket.OPEN) {
+    state.stats.dropped += viaRelay.length;
   } else {
-    const seats = hosting();
     const perPacket = seats ? 3 : 2;
     let batch = [];
     let size = 4;
@@ -171,7 +251,7 @@ function flush(now) {
       batch = [];
       size = 4;
     };
-    for (const item of state.outbox) {
+    for (const item of viaRelay) {
       const bytes = perPacket + item.packet.byteLength;
       if (size + bytes > MAX_BINARY_BYTES) send();
       batch.push(item);

@@ -6,6 +6,11 @@ import { followHostMap } from "./guest.js";
 import { validSeat, VERSION } from "./session.js";
 
 export function onControl(session, message) {
+  // Handshakes for direct links arrive by relay only; a link never carries one.
+  if (message.t === "rtc") {
+    session.direct?.onSignal(message);
+    return;
+  }
   if (session.mode === "host") onHostMessage(session, message);
   else onGuestMessage(session, message);
 }

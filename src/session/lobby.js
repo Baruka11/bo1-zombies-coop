@@ -25,7 +25,9 @@ export function hostRoster(session) {
   for (let seat = 1; seat <= MAX_GUESTS; seat += 1) {
     const g = session.guests.get(seat);
     const [status, tone] = guestStatus(session, g, seat, playing);
-    players.push({ n: seat + 1, name: status === "free" ? "" : cleanName(g?.state?.name), status, tone, ping: g?.present ? roundPing(rtts[seat]) : null });
+    const route = g?.present ? (session.direct?.isOpen(seat) ? "direct" : "relay") : null;
+    const ping = g?.present ? roundPing(session.direct?.rtt(seat) ?? rtts[seat]) : null;
+    players.push({ n: seat + 1, name: status === "free" ? "" : cleanName(g?.state?.name), status, tone, ping, route });
   }
   return { t: "lobby", players, slug: MAP_SLUGS[session.zone ?? currentZone()] ?? null, horde: currentHorde(), playing };
 }
@@ -65,7 +67,9 @@ export function guestRoster(session) {
   }
   if (!validSeat(session.seat)) return players;
   const [status, tone] = ownStatus(session);
-  return players.map((p) => (p.n === session.seat + 1 ? { ...p, name: session.name, ping: roundPing(session.stats?.rtt), status, tone } : p));
+  const route = session.direct?.isOpen(0) ? "direct" : "relay";
+  const ping = roundPing(session.direct?.rtt(0) ?? session.stats?.rtt);
+  return players.map((p) => (p.n === session.seat + 1 ? { ...p, name: session.name, ping, status, tone, route } : p));
 }
 
 function ownStatus(session) {

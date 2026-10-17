@@ -2,7 +2,7 @@
 // seats kept on reload and reused when freed.
 //   npm run relay:dev, then: node test/relay.test.mjs [relay URL]
 import assert from "node:assert/strict";
-import { encodePackets, decodePackets, encodeSeatPackets, decodeSeatPackets, relaySocketUrl, createRoomCode, createGuestId } from "../relay/src/protocol.js";
+import { encodePackets, decodePackets, encodeSeatPackets, decodeSeatPackets, relaySocketUrl, createRoomCode, createGuestId, createHostToken } from "../relay/src/protocol.js";
 
 const RELAY = process.argv[2] ?? "http://127.0.0.1:8787";
 const room = createRoomCode();
@@ -110,4 +110,64 @@ host.ws.close();
 for (const c of [again, g[1], late]) await c.take((m) => m.t === "peer" && m.present === false);
 console.log("ok  host leave announced");
 for (const c of [again, g[1], late]) c.ws.close();
+// The host seat lock: a host that sends a token keeps its room against anyone who only knows the room code.
+function hostIn(roomName, token) {
+  const ws = new WebSocket(relaySocketUrl(RELAY, roomName, "host", undefined, token));
+  const c = { ws, text: [], closed: null };
+  ws.onmessage = (e) => typeof e.data === "string" && c.text.push(JSON.parse(e.data));
+  ws.onclose = (e) => (c.closed = e.code);
+  c.ready = new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+  c.has = async (pred, ms = 2000) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ms) {
+      if (c.text.some(pred)) return true;
+      await wait(20);
+    }
+    return false;
+  };
+  return c;
+}
+{
+  const lockRoom = createRoomCode();
+  const t1 = createHostToken();
+  const t2 = createHostToken();
+  const first = hostIn(lockRoom, t1);
+  await first.ready;
+  assert.ok(await first.has((m) => m.t === "welcome"), "the first host is welcomed");
+
+  const thief = hostIn(lockRoom, t2);
+  await thief.ready.catch(() => {});
+  assert.ok(await thief.has((m) => m.t === "error" && m.code === "host_taken"), "a host with another token is refused");
+  await wait(200);
+  assert.equal(thief.closed, 4006);
+  const bare = hostIn(lockRoom);
+  await bare.ready.catch(() => {});
+  assert.ok(await bare.has((m) => m.t === "error" && m.code === "host_taken"), "a host with no token is refused in a locked room");
+  assert.equal(first.closed, null, "the real host is left alone");
+  console.log("ok  host seat locked to its token (4006 host_taken)");
+
+  const reload = hostIn(lockRoom, t1);
+  await reload.ready;
+  assert.ok(await reload.has((m) => m.t === "welcome"), "the same token gets the room back");
+  assert.ok(await first.has((m) => m.t === "error" && m.code === "replaced"), "and replaces the old connection");
+  reload.ws.close();
+  await wait(200);
+  const afterLeave = hostIn(lockRoom, t2);
+  await afterLeave.ready.catch(() => {});
+  assert.ok(await afterLeave.has((m) => m.t === "error" && m.code === "host_taken"), "the lock outlives the host's connection");
+  console.log("ok  same token reconnects, lock outlives the connection");
+
+  // Hosts that send no token (older versions) keep working as before.
+  const legacyRoom = createRoomCode();
+  const legacy = hostIn(legacyRoom);
+  await legacy.ready;
+  assert.ok(await legacy.has((m) => m.t === "welcome"));
+  const legacy2 = hostIn(legacyRoom);
+  await legacy2.ready;
+  assert.ok(await legacy2.has((m) => m.t === "welcome"));
+  assert.ok(await legacy.has((m) => m.t === "error" && m.code === "replaced"));
+  console.log("ok  tokenless hosts behave as before");
+  for (const c of [thief, bare, afterLeave, legacy2]) c.ws.close();
+}
+
 console.log("relay: all passed");

@@ -97,6 +97,7 @@ function watchPause(session) {
 
 function tick(session) {
   try {
+    session.direct?.tick();
     if (session.mode === "host") hostTick(session);
     else if (session.mode === "guest") guestTick(session);
     if (session.mode) reportHidden(session);
@@ -156,6 +157,12 @@ function actions(session) {
       session.name = cleanName(text);
       saveSetting("name", session.name);
       session.sentPhaseAt = 0; // resend our state, which carries the name
+    },
+    // Direct links show our IP address to the other players; this switches them on or off for this browser.
+    direct: () => {
+      session.directEnabled = !session.directEnabled;
+      saveSetting("direct", session.directEnabled ? "" : "0");
+      session.direct?.setEnabled(session.directEnabled);
     },
     editRelay: () => (session.editRelay = !session.editRelay),
     // From the over-quota notice: open settings straight at the relay field.

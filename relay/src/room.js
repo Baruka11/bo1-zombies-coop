@@ -1,6 +1,7 @@
 import { DurableObject } from "cloudflare:workers";
 import {
   GUEST_ID_PATTERN,
+  HOST_TOKEN_PATTERN,
   MAX_BINARY_BYTES,
   MAX_GUESTS,
   MAX_TEXT_BYTES,
@@ -17,7 +18,20 @@ import {
 import { json } from "./http.js";
 import { UsageTally } from "./usage.js";
 
-const CLOSE = { replaced: 4001, protocol: 4003, full: 4004, tooBig: 1009 };
+const CLOSE = { replaced: 4001, protocol: 4003, full: 4004, hostTaken: 4006, tooBig: 1009 };
+
+// A host that sends a token locks the room's host seat to it. The lock is forgotten once the host has been gone this
+// long, so a host who lost the token (closed the tab) gets the room back instead of losing the code for good.
+const HOST_LOCK_TTL_MS = 10 * 60 * 1000;
+
+const sha256Hex = async (text) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))), (b) => b.toString(16).padStart(2, "0")).join("");
+
+function sameText(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
 
 // Token buckets per socket. Binary frames over the limit are dropped without a word, as a lossy network would; the
 // game's own netcode retransmits what matters. The host carries traffic for up to three guests, hence more room.
@@ -57,6 +71,13 @@ export class RoomRelay extends DurableObject {
       return new Response(null, { status: 101, webSocket: client });
     }
 
+    if (role === "host" && !(await this.claimHost(request.headers.get("x-host-token") ?? ""))) {
+      server.accept();
+      this.send(server, { t: "error", code: "host_taken" });
+      this.close(server, CLOSE.hostTaken, "Host seat is taken");
+      return new Response(null, { status: 101, webSocket: client });
+    }
+
     const identity = role === "host" ? "host" : `guest:${guestId}`;
     for (const old of this.ctx.getWebSockets(identity)) {
       this.send(old, { t: "error", code: "replaced" });
@@ -76,6 +97,26 @@ export class RoomRelay extends DurableObject {
       if (host) this.send(host, { t: "peer", seat, present: true });
     }
     return new Response(null, { status: 101, webSocket: client });
+  }
+
+  /**
+   * Whether this connection may be the room's host. Without a lock (rooms of hosts that send no token, or whose lock
+   * ran out) anyone may, and a token then creates the lock; with one, only the same token does.
+   */
+  async claimHost(token) {
+    const lock = await this.ctx.storage.get("hostLock");
+    const free = !lock || (Date.now() - lock.at > HOST_LOCK_TTL_MS && this.open("host").length === 0);
+    if (!HOST_TOKEN_PATTERN.test(token)) return free;
+    const hash = await sha256Hex(token);
+    if (!free && !sameText(lock.hash, hash)) return false;
+    await this.ctx.storage.put("hostLock", { hash, at: Date.now() });
+    return true;
+  }
+
+  /** The lock's clock starts when the host leaves. */
+  async touchHostLock() {
+    const lock = await this.ctx.storage.get("hostLock");
+    if (lock) await this.ctx.storage.put("hostLock", { ...lock, at: Date.now() });
   }
 
   /**
@@ -186,6 +227,7 @@ export class RoomRelay extends DurableObject {
     // A socket replaced by a newer one leaves while its successor is already open: nobody needs to hear about it.
     if (info.role === "host") {
       if (this.open("host", socket).length) return;
+      this.ctx.waitUntil(this.touchHostLock());
       for (const guest of this.guests()) this.send(guest, { t: "peer", present: false });
       return;
     }

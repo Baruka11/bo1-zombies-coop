@@ -37,6 +37,8 @@ button.icon:hover { background: var(--bg3); color: var(--fg); }
 .tag.host { background: rgba(226,85,47,.18); color: var(--accent2); }
 .tag.you { background: rgba(255,255,255,.1); color: var(--fg); }
 .tag.hell { background: rgba(255,107,90,.15); color: var(--bad); }
+.tag.direct { background: rgba(99,212,113,.16); color: var(--ok); }
+.tag.relay { background: rgba(255,255,255,.07); color: var(--muted); }
 .players { display: grid; gap: 6px; }
 .player { display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 7px; background: var(--bg3); border: 1px solid transparent; }
 .player.me { border-color: var(--line); }

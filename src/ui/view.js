@@ -165,6 +165,7 @@ function playerRows(session, roster, me) {
     const tags = [];
     if (p.host) tags.push({ cls: "host", text: T.hostTag });
     if (n === me) tags.push({ cls: "you", text: T.you });
+    if (!empty && !p.host && (p.route === "direct" || p.route === "relay")) tags.push({ cls: p.route, text: p.route === "direct" ? T.routeDirect : T.routeRelay });
     return {
       n,
       name: empty ? T.st.free : cleanName(p.name) || T.player(n),
@@ -189,13 +190,31 @@ function settingsSection(session, inRoom) {
   if (inRoom) {
     const items = [
       [T.relay, T.relayState[session.socket] ?? T.relayState.idle, session.socket === "open" ? "" : "error"],
+      [T.route, routeLabel(session)],
       [T.ping, session.stats?.rtt != null ? `${Math.round(session.stats.rtt)} ms` : "–"],
     ];
     if (session.stats?.lost) items.push([T.dropped, String(session.stats.lost)]);
     blocks.push({ kind: "kv", items });
   }
-  blocks.push(...controllerBlocks(session), ...relayBlocks(session), { kind: "credits", text: T.credits });
+  blocks.push(...directBlocks(session, inRoom), ...controllerBlocks(session), ...relayBlocks(session), { kind: "credits", text: T.credits });
   return { kind: "section", title: T.settings, act: "settings", open: session.showSettings, blocks };
+}
+
+/** How this player's game packets travel: a guest has one route (to the host), the host one per guest. */
+function routeLabel(session) {
+  const links = session.direct;
+  if (!session.directEnabled) return T.routeOff;
+  if (!links?.supported) return T.routeUnsupported;
+  if (session.mode === "guest") return links.isOpen(0) ? T.routeDirect : links.links.has(0) ? T.routeTrying : T.routeRelay;
+  const present = [...session.guests.values()].filter((g) => g.present);
+  if (!present.length) return T.routeRelay;
+  return T.routeSome(present.filter((g) => links.isOpen(g.seat)).length, present.length);
+}
+
+function directBlocks(session, inRoom) {
+  if (!inRoom) return [];
+  const label = session.directEnabled ? T.directOff : T.directOn;
+  return [{ kind: "text", cls: "muted small", text: T.directNote }, { kind: "buttons", buttons: [{ act: "direct", label, style: "ghost" }] }];
 }
 
 function controllerBlocks(session) {

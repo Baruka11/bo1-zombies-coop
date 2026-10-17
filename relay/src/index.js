@@ -67,6 +67,7 @@ export default {
     headers.set("x-room", room);
     headers.set("x-role", role);
     headers.set("x-guest-id", role === "guest" ? url.searchParams.get("id") ?? "" : "");
+    headers.set("x-host-token", role === "host" ? url.searchParams.get("token") ?? "" : "");
     const stub = env.ROOM_RELAY.get(env.ROOM_RELAY.idFromName(`room:${room}`));
     try {
       return await stub.fetch(new Request(request, { headers }));

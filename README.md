@@ -178,6 +178,31 @@ from vel.gg's own multiplayer (which it keeps switched off during a session):
    where the server runs.
 4. **Pumps packets** between those queues and a WebSocket in a Worker, through a Cloudflare Durable Object per room
    that routes them by seat without looking inside.
+5. **Links players directly when it can** (WebRTC data channels, `src/net/direct.js`). The relay still sets up the
+   room and carries the handshake, and stays the fallback: when a direct link is missing or drops, packets simply keep
+   going through it. Game packets use an unordered, unreliable channel (the engine has its own netcode on top), and
+   control messages (pause, lobby, positions) a reliable one, which also measures the ping.
+
+### Direct links and your privacy
+
+A direct link cuts the delay (no detour through the relay) and takes the load off the relay's daily allowance. The
+price is that **the players in the room can see each other's IP address**, which the relay otherwise hides. So:
+
+- **Settings > "Relay only"** turns direct links off for you. Nothing of WebRTC is touched then, and the other players
+  are told to stay on the relay. The card shows the route per player (Direct or Relay).
+- Only the people with your invite link can join, and a room holds four players. The room code is 80 random bits.
+- STUN is the only WebRTC server used (Google's and Cloudflare's public ones, so they see that your IP asked). There
+  is no TURN: the relay is the fallback.
+- Handshake messages are checked before the browser sees them (a data-channel session only, size and shape, a handful
+  of candidates), one link per seat, only the two expected channels. Game frames and control messages are size-checked
+  and rate-limited per player; a player over the limit loses the link and is not linked again for a minute.
+  Control messages from a link get the same checks as from the relay, and the sender never chooses its own `from`.
+- **The host seat is locked.** The host sends a secret token (kept in the tab's session storage); the relay then
+  refuses anyone else who knows only the room code. It needs a relay with this version of `relay/` deployed; relays
+  that predate it ignore the token and work as before. If a host loses the token (closes the tab), the lock frees
+  itself after ten minutes.
+- What does not change: whoever runs the relay can see the handshake and the packets on the relay path, and every
+  player's engine still parses the other players' packets. Play with people you know, and use your own relay.
 
 ## Development
 
@@ -202,8 +227,9 @@ npm install
 npm run build              # src/ -> extension/coop.js
 npm run check              # lint + build + engine patch test
 npm run relay:dev          # relay on http://127.0.0.1:8787
-npm run test:relay         # routing test against it
+npm run test:relay         # routing and host-lock test against it
 node test/e2e.mjs 2 kino   # two real browsers playing through the local relay
+# test/direct.html: serve the repo root, open /test/direct.html in a browser; the title says PASS or FAIL (direct links)
 npm run preview            # screenshots of every card state (no game loaded)
 npm run package            # dist/bo1-zombies-coop.zip (same name every release, for the download link)
 ```

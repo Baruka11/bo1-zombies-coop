@@ -1,7 +1,11 @@
 // Wire format spoken between the extension and the relay. Imported by both sides, so keep it free of browser- or
 // Worker-only APIs.
 //
-// Connection: wss://<relay>/v1/rooms/<room>?role=host|guest&v=<PROTOCOL_VERSION>[&id=<guest id>]
+// Connection: wss://<relay>/v1/rooms/<room>?role=host|guest&v=<PROTOCOL_VERSION>[&id=<guest id>][&token=<host token>]
+//
+// The host token is optional and added in version 3 without a version bump: a host that sends one locks the room's host
+// seat to it (whoever knows only the room code can no longer take the room over), and a relay that predates it just
+// ignores the parameter.
 //
 // A room has one host and up to MAX_GUESTS guests. Each guest gets a seat (1..MAX_GUESTS = players 2..4); the guest id
 // is random per browser tab and room, so reloading the page gives back the same seat.
@@ -28,6 +32,7 @@ export const MAX_PACKET_BYTES = 1264;
 
 export const ROOM_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 export const GUEST_ID_PATTERN = /^[a-z0-9]{8,32}$/;
+export const HOST_TOKEN_PATTERN = /^[a-f0-9]{32}$/;
 
 // Base32 without i, l, o and u, so a code read out loud cannot be misheard.
 const CODE_ALPHABET = "0123456789abcdefghjkmnpqrstvwxyz";
@@ -45,6 +50,11 @@ export function createGuestId(random = randomBytes) {
   return toCode(random(16));
 }
 
+/** 128 random bits as 32 hex digits: the secret that keeps a room's host seat. */
+export function createHostToken(random = randomBytes) {
+  return Array.from(random(16), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 /** Accepts a bare code in any case and spacing, or a whole invite link. Returns the canonical code or null. */
 export function normalizeRoomCode(input) {
   if (typeof input !== "string") return null;
@@ -59,11 +69,12 @@ export function normalizeRoomCode(input) {
   return compact.match(/.{4}/g).join("-");
 }
 
-export function relaySocketUrl(relayBase, room, role, guestId) {
+export function relaySocketUrl(relayBase, room, role, guestId, hostToken) {
   const url = new URL(relayBase);
   url.protocol = url.protocol === "http:" || url.protocol === "ws:" ? "ws:" : "wss:";
   url.pathname = `/v1/rooms/${encodeURIComponent(room)}`;
-  url.search = `?role=${role}&v=${PROTOCOL_VERSION}${role === "guest" ? `&id=${guestId}` : ""}`;
+  const extra = role === "guest" ? `&id=${guestId}` : HOST_TOKEN_PATTERN.test(hostToken ?? "") ? `&token=${hostToken}` : "";
+  url.search = `?role=${role}&v=${PROTOCOL_VERSION}${extra}`;
   return url.toString();
 }
 

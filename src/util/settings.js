@@ -1,6 +1,6 @@
 // Per-browser preferences in localStorage. Every access is guarded: storage can be unavailable (private windows,
 // blocked site data) and the extension must keep working with defaults.
-import { createGuestId, GUEST_ID_PATTERN } from "../../relay/src/protocol.js";
+import { createGuestId, createHostToken, GUEST_ID_PATTERN, HOST_TOKEN_PATTERN } from "../../relay/src/protocol.js";
 
 const PREFIX = "bo1coop.";
 
@@ -32,6 +32,24 @@ export function guestIdFor(room) {
     return id;
   } catch {
     return createGuestId();
+  }
+}
+
+/**
+ * The secret that keeps this room's host seat (see claimHost in the relay). Kept in sessionStorage: a reload of the
+ * host's tab keeps the room, a stranger who only has the room code cannot take it, and a lost token frees up after
+ * the relay's timeout.
+ */
+export function hostTokenFor(room) {
+  const key = `${PREFIX}host:${room}`;
+  try {
+    const saved = sessionStorage.getItem(key);
+    if (saved && HOST_TOKEN_PATTERN.test(saved)) return saved;
+    const token = createHostToken();
+    sessionStorage.setItem(key, token);
+    return token;
+  } catch {
+    return createHostToken();
   }
 }
 

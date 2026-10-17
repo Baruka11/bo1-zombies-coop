@@ -182,7 +182,11 @@ function syncPause(session, present, active, phase, screen) {
  * answering instead of seeing it go silent first (that gap is what played as lag and teleporting).
  */
 function pauseGrace(session) {
-  const rtts = Object.values(session.stats?.rtts ?? {}).filter(Number.isFinite);
+  const rtts = [];
+  for (const g of session.guests.values()) {
+    const rtt = session.direct?.rtt(g.seat) ?? session.stats?.rtts?.[g.seat];
+    if (g.present && Number.isFinite(rtt)) rtts.push(rtt);
+  }
   return rtts.length ? Math.min(MAX_PAUSE_GRACE_MS, Math.max(MIN_PAUSE_GRACE_MS, Math.max(...rtts) / 2 + 30)) : DEFAULT_PAUSE_GRACE_MS;
 }
 

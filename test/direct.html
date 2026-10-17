@@ -1,0 +1,116 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>direct links test</title>
+<pre id="out">running…</pre>
+<script type="module">
+// Browser test for src/net/direct.js: a host and a guest in one page, joined by a fake relay (it stamps `from` on the
+// guest's messages and honours `to` on the host's, as the real one does).
+//   serve the repository root (any static server), open /test/direct.html: the page title says PASS or FAIL.
+import { DirectLinks, checkSdp, checkCandidate } from "../src/net/direct.js";
+
+const out = document.getElementById("out");
+const lines = [];
+const log = (text) => { lines.push(text); out.textContent = lines.join("\n"); };
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const until = async (check, ms = 15000, what = "condition") => {
+  const t0 = Date.now();
+  while (Date.now() - t0 < ms) { if (check()) return; await wait(25); }
+  throw new Error(`timed out waiting for ${what}`);
+};
+let failed = 0;
+const ok = (cond, text) => { log(`${cond ? "ok  " : "FAIL"} ${text}`); if (!cond) failed += 1; };
+
+function pair({ hostEnabled = true, guestEnabled = true } = {}) {
+  const got = { hostGame: [], guestGame: [], hostControl: [], guestControl: [], signals: [] };
+  let host, guest;
+  host = new DirectLinks({
+    role: "host", enabled: hostEnabled,
+    signal: (m) => { got.signals.push(["host", m.k]); queueMicrotask(() => { if (m.to === 1) guest.onSignal(m); }); },
+    onGame: (seat, data) => got.hostGame.push([seat, new Uint8Array(data)]),
+    onControl: (seat, m) => got.hostControl.push([seat, m]),
+    seatsPresent: () => [1],
+  });
+  guest = new DirectLinks({
+    role: "guest", enabled: guestEnabled,
+    signal: (m) => { got.signals.push(["guest", m.k]); queueMicrotask(() => host.onSignal({ ...m, from: 1 })); },
+    onGame: (seat, data) => got.guestGame.push([seat, new Uint8Array(data)]),
+    onControl: (seat, m) => got.guestControl.push([seat, m]),
+    hostPresent: () => true,
+  });
+  return { host, guest, got };
+}
+const frame = (...v) => Uint8Array.from([1, 1, v.length, 0, ...v.flatMap((x) => [1, 0, x])]).buffer;
+
+try {
+  // --- pure checks -----------------------------------------------------------------------------------------------
+  const good = "v=0\r\no=- 1 2 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\nm=application 9 UDP/DTLS/SCTP webrtc-datachannel\r\nc=IN IP4 0.0.0.0\r\n";
+  ok(checkSdp(good) === good, "a data-channel SDP passes");
+  ok(checkSdp(good.replace("application 9 UDP/DTLS/SCTP webrtc-datachannel", "audio 9 UDP/TLS/RTP/SAVPF 111")) === null, "an audio SDP is refused");
+  ok(checkSdp(good + "m=video 9 RTP/AVP 96\r\n") === null, "an SDP with a second media section is refused");
+  ok(checkSdp("v=0" + "x".repeat(4000)) === null, "an oversized SDP is refused");
+  ok(checkSdp(good + "a=\u0001bad\r\n") === null, "an SDP with control characters is refused");
+  ok(checkCandidate({ candidate: "candidate:1 1 udp 2113937151 abcd.local 5000 typ host", sdpMid: "0", sdpMLineIndex: 0 }) !== null, "a normal candidate passes");
+  ok(checkCandidate({ candidate: "x".repeat(400) }) === null, "an oversized candidate is refused");
+  ok(checkCandidate({ candidate: "javascript:alert(1)" }) === null, "a candidate that is not one is refused");
+
+  // --- a real link -----------------------------------------------------------------------------------------------
+  const a = pair();
+  ok(a.host.supported && a.guest.supported, "this browser has RTCPeerConnection");
+  a.guest.tick();
+  await until(() => a.host.isOpen(1) && a.guest.isOpen(0), 15000, "the link to open");
+  ok(true, `link open (signals: ${a.got.signals.map((s) => s.join(":")).join(" ")})`);
+
+  a.guest.sendGame(0, frame(7, 8));
+  a.host.sendGame(1, frame(9));
+  await until(() => a.got.hostGame.length && a.got.guestGame.length, 3000, "game frames");
+  ok(a.got.hostGame[0][0] === 1 && a.got.hostGame[0][1][a.got.hostGame[0][1].length - 1] === 8, "host got the guest's frame, tagged with seat 1");
+  ok(a.got.guestGame[0][0] === 0, "guest got the host's frame, tagged with seat 0");
+
+  a.guest.sendControl(0, { t: "pause", on: true, from: 3 });
+  a.host.sendControl(1, { t: "lobby", players: [], to: 2 });
+  await until(() => a.got.hostControl.length && a.got.guestControl.length, 3000, "control messages");
+  ok(a.got.hostControl[0][1].from === 1 && a.got.hostControl[0][1].on === true, "a guest cannot choose its own `from`");
+  ok(a.got.guestControl[0][1].t === "lobby" && a.got.guestControl[0][1].to === undefined, "the host's message arrives without routing fields");
+
+  const before = a.got.hostControl.length;
+  a.guest.sendControl(0, { t: "welcome" });
+  a.guest.sendControl(0, { t: "rtc", k: "offer" });
+  a.guest.sendControl(0, { t: "after" });
+  await until(() => a.got.hostControl.length > before, 3000, "the message after the refused ones");
+  ok(a.got.hostControl.slice(before).every(([, m]) => m.t === "after"), "relay-only and handshake types are not accepted over a link");
+
+  await until(() => Number.isFinite(a.host.rtt(1)) && Number.isFinite(a.guest.rtt(0)), 5000, "a measured ping");
+  ok(a.host.rtt(1) < 1000 && a.guest.rtt(0) < 1000, `ping measured (host ${a.host.rtt(1).toFixed(1)} ms, guest ${a.guest.rtt(0).toFixed(1)} ms)`);
+
+  // --- flooding --------------------------------------------------------------------------------------------------
+  for (let i = 0; i < 1700; i += 1) a.guest.sendGame(0, frame(1));
+  await until(() => !a.host.isOpen(1), 5000, "the host to drop a flooding guest");
+  ok(true, "a guest flooding game frames loses its link");
+  a.guest.close();
+  const refused = a.host.banned.get(1) > Date.now();
+  ok(refused, "and is not linked again for a while");
+  a.host.close();
+
+  // --- a host that says no ---------------------------------------------------------------------------------------
+  const b = pair({ hostEnabled: false });
+  b.guest.tick();
+  await until(() => b.got.signals.some(([who, k]) => who === "host" && k === "no"), 5000, "the host's refusal");
+  await wait(300);
+  ok(!b.guest.links.has(0) && b.guest.retries > 3, "a guest told no stops asking");
+  b.guest.close(); b.host.close();
+
+  // --- turned off ------------------------------------------------------------------------------------------------
+  const c = pair();
+  c.guest.tick();
+  await until(() => c.host.isOpen(1) && c.guest.isOpen(0), 15000, "the second link");
+  c.guest.setEnabled(false);
+  await wait(200);
+  ok(!c.guest.isOpen(0) && c.guest.sendGame(0, frame(1)) === false, "turning direct links off ends them and sends fall back to the relay");
+  c.guest.close(); c.host.close();
+} catch (error) {
+  failed += 1;
+  log(`FAIL ${error.stack ?? error}`);
+}
+log(failed ? `${failed} FAILED` : "ALL PASSED");
+document.title = failed ? "FAIL" : "PASS";
+</script>

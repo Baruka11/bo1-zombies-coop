@@ -5,7 +5,7 @@ import { T } from "../ui/strings.js";
 import { isLoopback, normalizeRelay, pickRelay } from "../util/relay.js";
 import { cleanName, readSetting } from "../util/settings.js";
 
-export const VERSION = "2.2.3";
+export const VERSION = "2.3.0";
 export const AIM_LEVELS = 10;
 
 export function createSession(search = location.search) {
@@ -28,6 +28,8 @@ export function createSession(search = location.search) {
     controller: readSetting("controller", "1") !== "0",
     aimLevel: Math.max(0, Math.min(AIM_LEVELS - 1, Number(readSetting("aim", "4")) || 0)),
     name: cleanName(readSetting("name", "")),
+    // Direct links reveal this player's IP address to the others in the room; on by default, off keeps the relay between us.
+    directEnabled: readSetting("direct", "1") !== "0",
 
     // engine
     hash: null,
@@ -40,6 +42,7 @@ export function createSession(search = location.search) {
     // network
     socket: "idle",
     pump: null,
+    direct: null, // DirectLinks (see net/direct.js)
     stats: null,
     usage: null,
     /** Host: some guest is in the room. Guest: the host is in the room. */
@@ -97,6 +100,7 @@ export function createSession(search = location.search) {
     }
     if (state === "closed" && code === 4001) session.fail("replaced");
     if (state === "closed" && code === 4004) session.fail("full", MAX_GUESTS + 1);
+    if (state === "closed" && code === 4006) session.fail("hostTaken");
     session.note(`relay ${state}${code ? ` ${code}` : ""}`);
   };
 
