@@ -15,7 +15,7 @@ With controller support and a fun mode for the host (god mode, wonder weapons, i
 
 ### [⬇ Download the extension](https://github.com/Baruka11/bo1-zombies-coop/releases/latest/download/bo1-zombies-coop.zip) · [Install guide with pictures](https://allanlotta.github.io/bo1-zombies-coop/)
 
-**English** · [Português](#português)
+**English** · [Français](#français) · [Português](#português)
 
 <img src="docs/images/four-players.jpg" width="860" alt="Four players in the same lobby, one browser each: the host and three friends, with names, status and ping">
 
@@ -376,3 +376,145 @@ cartão avisa. O seu próprio relay também é grátis, leva uns 5 minutos e a c
 
 Os seus links de convite já levam o relay junto: os amigos só clicam em **Usar este relay** no cartão deles.
 Pelo terminal: veja os comandos na seção em inglês, acima.
+
+---
+
+## Français
+
+**Joue à Black Ops 1 Zombies dans ton navigateur avec jusqu'à 4 amis, en ligne.** Extension Chrome gratuite pour
+[vel.gg/bsz](https://vel.gg/bsz/) : l'un héberge, envoie le lien, et tout le monde joue ensemble, y compris sur Kino der
+Toten. Avec la manette et un mode fun pour l'hôte (invincible, armes spéciales, munitions infinies, vol et plus).
+
+> [!NOTE]
+> Ceci est un fork de [AllanLotta/bo1-zombies-coop](https://github.com/AllanLotta/bo1-zombies-coop), maintenu pour
+> fonctionner avec le moteur actuel de vel.gg (l'original a cessé de marcher avec lui). Ce qui est ajouté ici : le
+> nouveau moteur et l'adresse `/bsz/`, une pause plus rapide, des **connexions directes entre les joueurs** (WebRTC, avec
+> le relais en secours), avec un bouton « Relay only » pour cacher ton IP et une place d'hôte verrouillée, et un bouton
+> de **rapport de diagnostic**. Télécharge depuis les [Releases](https://github.com/Baruka11/bo1-zombies-coop/releases)
+> de ce dépôt : les images du guide d'installation restent justes pour les étapes, mais son bouton de téléchargement
+> mène à l'original. `v2.2.3` est la version stable, sans connexion directe.
+
+> [!IMPORTANT]
+> **Tu joues avec des amis ? [Crée ton propre relais](#relais-personnel-recommandé-pour-ton-groupe) d'abord.** Le co-op
+> passe par un relais. Le relais partagé est gratuit mais petit : quelques heures de jeu par jour pour **tout le monde**
+> ensemble, et quand il est épuisé le co-op s'arrête jusqu'à minuit UTC (1 h ou 2 h du matin en France). Ton propre
+> relais est gratuit aussi, prend 5 minutes et n'est que pour ton groupe. La carte Co-op a un bouton **Create my relay**
+> qui mène au [guide pas à pas](https://allanlotta.github.io/bo1-zombies-coop/#relay) (en anglais).
+
+<table>
+<tr>
+<td align="center"><img src="docs/images/lobby-host.png" width="250" alt="Lobby de l'hôte"><br><sub>Hébergement : code de la salle et lobby</sub></td>
+<td align="center"><img src="docs/images/joining.png" width="250" alt="Connexion"><br><sub>Connexion : progression et étape suivante</sub></td>
+</tr>
+</table>
+
+<sub>Les captures sont en anglais, comme l'extension quand ton navigateur n'est pas en portugais.</sub>
+
+### Ce que ça fait
+
+- **Jusqu'à 4 joueurs en ligne**, par internet, sans être sur le même réseau ni ouvrir de ports.
+- **Un lobby pour tous** : nom, couleur (blanc, bleu, jaune, vert, comme au tableau des scores de BO1), état et ping de chacun.
+- **Tout le monde apparaît ensemble** : le départ de l'hôte attend que les autres soient entrés (ou démarre tout de suite, si tu préfères).
+- **Les 10 cartes**, Hell mode compris.
+- **Pause synchronisée** : celui qui ouvre le menu met tout le monde en pause.
+- **Mode fun** pour l'hôte : invincible, invisible, traverser les murs, voler, vitesse et points par joueur ; munitions
+  infinies ; zombies morts en un coup ou qui vous ignorent ; vitesse du jeu, saut et gravité ; armes spéciales.
+  [Détails plus bas](#mode-fun).
+- **Manettes PlayStation et Xbox**, avec réglage de la vitesse de visée.
+- **Connexion directe entre joueurs** quand elle est possible, avec le relais en secours.
+- **Corrige le crash** où un joueur appuyant sur Échap ou T (chat) faisait planter le jeu des autres.
+
+### Installer (2 minutes, chaque joueur)
+
+Guide pas à pas avec images (en anglais) : **[allanlotta.github.io/bo1-zombies-coop](https://allanlotta.github.io/bo1-zombies-coop/)**
+
+1. **[Télécharge l'extension](https://github.com/Baruka11/bo1-zombies-coop/releases/latest/download/bo1-zombies-coop.zip)**
+   et décompresse-la. Tu obtiens un dossier `bo1-zombies-coop` : mets-le dans un endroit fixe, comme Documents (Chrome
+   continue à l'utiliser).
+2. Colle `chrome://extensions` dans la barre d'adresse de Chrome et active le **Mode développeur**, en haut à droite :
+
+   <img src="docs/images/install/en-1.png" width="640" alt="Interrupteur du mode développeur">
+3. Clique sur **Charger l'extension non empaquetée** et choisis le dossier `bo1-zombies-coop` (celui qui contient `manifest.json`) :
+
+   <img src="docs/images/install/en-2.png" width="640" alt="Bouton pour charger l'extension non empaquetée">
+4. C'est prêt. Ouvre [vel.gg/bsz](https://vel.gg/bsz/) : la carte **Co-op** apparaît en haut à droite.
+
+   <img src="docs/images/install/en-3.png" width="640" alt="L'extension installée">
+
+Au démarrage, Chrome peut afficher un avertissement sur les extensions en mode développeur : c'est normal, ferme-le.
+La carte Co-op n'annonce pas les mises à jour de ce fork : consulte la page des [Releases](https://github.com/Baruka11/bo1-zombies-coop/releases),
+remplace les fichiers du dossier par les nouveaux et recharge l'extension.
+
+### Jouer
+
+**L'hôte :** clique sur **Host a game**, puis **Copy link**, et envoie le lien à tes amis. Choisis la carte (tout le monde
+suit). Attends sur l'écran « click to start » que tous apparaissent **Ready** dans le lobby, puis clique dans le jeu.
+
+**Les amis :** ouvrez le lien et appuyez sur une touche quand la page le demande, pour charger la carte. Quand la carte
+dit **You are in**, cliquez dans le jeu.
+
+Astuces : mets ton nom dans **Settings**. Si quelqu'un se déconnecte, il clique sur **Rejoin** (celui qui arrive après
+le début regarde jusqu'à la manche suivante, comme dans le jeu d'origine). Apparu trop loin des autres ? **Go to the host**.
+
+### Mode fun
+
+Pour l'hôte, ou quand tu joues seul. Il agit sur ton propre serveur de jeu, donc il vaut pour tous ceux de ta partie, et
+tes amis n'ont besoin de rien de plus. Appuie sur **Échap** en jeu pour ouvrir la carte Co-op, puis **Fun mode**.
+
+- **Par joueur, ou tous à la fois :** invincible, ne peut pas mourir, invisible pour les zombies, traverser les murs, voler,
+  vitesse de 0,5× à 3×, points (+5k, +50k, maximum).
+- **Munitions :** chargeur infini, réserve infinie, tout remplir pour tout le monde.
+- **Zombies :** meurent en un coup, ignorent les joueurs, nettoyer la carte.
+- **Monde :** vitesse du jeu, hauteur de saut, gravité.
+- **Armes pour l'hôte :** Ray Gun, Thundergun, Wunderwaffe, Winter's Howl, Wave Gun, Scavenger, Crossbow, Ballistic
+  Knife, Monkey Bomb, Gersh Device et d'autres, versions améliorées comprises. Seules celles qui existent sur la carte
+  actuelle fonctionnent ; la carte te prévient quand l'une n'existe pas.
+- **Reset everything** remet le jeu à la normale.
+
+Désactive Vol et Traverser les murs en étant au sol, sinon tu tombes hors de la carte.
+
+### Connexion directe et vie privée
+
+Une connexion directe réduit le délai (pas de détour par le relais) et soulage le quota du relais. En échange,
+**les joueurs de la salle peuvent voir l'adresse IP des autres**, que le relais cache normalement.
+
+- **Settings > « Relay only »** désactive les connexions directes pour toi : tu restes derrière le relais. La carte
+  montre la route de chaque joueur (Direct ou Relay).
+- Seules les personnes qui ont ton lien d'invitation peuvent rejoindre, et une salle compte quatre joueurs.
+- La **place d'hôte est verrouillée** par un jeton secret sur les relais à jour (ceux déployés avec le dossier `relay/` de
+  ce dépôt) : quelqu'un qui ne connaît que le code de la salle ne peut plus prendre la partie.
+- **Settings > « Copy diagnostic report »** copie un rapport pour signaler un problème (version, routes, compteurs,
+  durée des pauses, derniers événements). Il ne contient ni IP, ni nom, ni code de salle.
+- Ce qui ne change pas : celui qui héberge le relais voit la mise en relation et les paquets passant par lui, et le moteur
+  de chaque joueur analyse les paquets des autres. Joue avec des gens que tu connais, et utilise ton propre relais.
+
+### Problèmes courants
+
+| Problème | Quoi faire |
+| --- | --- |
+| « vel.gg updated its game engine… » | Un nouveau moteur est sorti ; le co-op se coupe jusqu'à la mise à jour de l'extension. Regarde s'il y a une nouvelle version. |
+| « Different versions of the game » | Les deux rechargent la page. |
+| « This game is full » | La salle contient 4 joueurs. |
+| Bloqué sur « Next in line » | Les joueurs entrent un par un ; ça avance en moins d'une minute. Sinon, recharge. |
+| vel.gg a maintenant son propre multijoueur | Quand tu héberges ou rejoins par la carte Co-op, l'extension laisse vel.gg en solo et fait le co-op elle-même (lobby, manette, pause synchronisée, mode fun). Pour utiliser le multijoueur de vel.gg, n'héberge ni ne rejoins par la carte. |
+| « This relay used up today's free allowance » | Le relais partagé est épuisé pour aujourd'hui (il revient à minuit UTC). [Crée ton relais](#relais-personnel-recommandé-pour-ton-groupe) : 5 minutes, gratuit. |
+| Saccades ou téléportations | Ouvre Settings > « Copy diagnostic report » juste après et envoie le texte à celui qui maintient l'extension. Essaie aussi « Relay only » pour comparer. |
+
+### Relais personnel (recommandé pour ton groupe)
+
+Le relais par défaut est partagé entre **tous** ceux qui utilisent l'extension, sur l'offre gratuite de Cloudflare :
+environ **4 heures de jeu à 2, ou 1 h 30 à 4, par jour, pour tout le monde ensemble**. Quand il est épuisé, le co-op
+s'arrête jusqu'à minuit UTC et la carte te prévient. Ton propre relais est gratuit aussi, prend environ 5 minutes, et son
+quota n'est que pour ton groupe.
+
+**Avec le bouton (sans terminal) :**
+
+1. Crée un compte gratuit sur [dash.cloudflare.com/sign-up](https://dash.cloudflare.com/sign-up) et confirme l'e-mail.
+2. Clique sur [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/Baruka11/bo1-zombies-coop/tree/main/relay),
+   connecte-toi, autorise la création d'une copie du relais dans ton GitHub et clique sur **Deploy**. Si Cloudflare
+   demande un sous-domaine `workers.dev`, n'importe quel nom convient.
+3. Copie l'adresse de ton relais quand il est prêt : `https://bo1-zombies-coop-relay.<ton-nom>.workers.dev`.
+4. Dans la carte Co-op : **Settings → Change relay**, colle l'adresse et clique sur **Save**.
+
+Tes liens d'invitation portent déjà le relais : tes amis cliquent juste sur **Use this relay** sur leur carte.
+Par le terminal : voir les commandes dans la section en anglais, plus haut.
